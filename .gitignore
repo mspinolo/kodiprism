@@ -1,0 +1,11 @@
+dist/
+__pycache__/
+*.pyc
+.mypy_cache/
+.pytest_cache/
+.venv/
+venv/
+kodi-addon-checker.log
+.DS_Store
+.idea/
+.vscode/

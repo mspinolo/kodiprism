@@ -1,14 +1,17 @@
 # Kodi + PhotoPrism Add-on: Knowledge Base
 
 Notes from building and testing `plugin.image.photoprism`, a Python 3 add-on for Kodi 21 "Omega".
-Everything below marked **[verified]** was checked against a real PhotoPrism server (latest Docker image, Nov 2026) or by Kodi's tools. Anything marked **[unverified]** has not been run inside a real Kodi.
+Everything below marked **[verified]** was, according to the previous agent (Claude Opus, 2026-11-21), checked against a real PhotoPrism server (latest Docker image, Nov 2026) or by Kodi's tools. Anything marked **[unverified]** has not been run inside a real Kodi.
+
+> **Provenance.** This file started as the previous agent's hand-over notes. The 2026-11-22 review session (Claude Sonnet) restructured the repository, fixed three bugs (see §7) and re-ran only the offline tests, pyflakes and mypy. It had **no** access to a real PhotoPrism server or a real Kodi, and `kodi-addon-checker` could not run offline (it downloads the official add-on list). Entries tagged **[review]** below are that session's additions. Start with [`../AGENTS.md`](../AGENTS.md) for the repository map and backlog.
 
 ## 1. Add-on structure
+In this repository the add-on lives in the `plugin.image.photoprism/` folder (the zip is built from it by
+`tools/build_zip.py`); tests, tools, assets and docs sit beside it. See `AGENTS.md` for the full repo map.
 ```
 plugin.image.photoprism/
   addon.xml                      # id = folder name; xbmc.python 3.0.1; script.module.requests
   default.py                     # entry point -> resources.lib.plugin.run(sys.argv)
-  README.md
   resources/
     __init__.py
     settings.xml                 # new-style settings (version="1")
@@ -78,6 +81,7 @@ plugin.image.photoprism/
 
 ## 5. Icon and fanart
 - Write an SVG (gradient background, stacked photo frames, sun and mountains), then render it with `pip install cairosvg`: `cairosvg.svg2png(url=..., output_width=512, output_height=512)`. Convert to RGB with Pillow.
+- **[review]** Sources are `assets/icon.svg` and `assets/fanart.svg`; `make assets` (`tools/render_assets.py`) regenerates `icon.png` and `fanart.jpg` and was checked to reproduce the committed images pixel for pixel.
 - `kodi-addon-checker` **rejects icons with transparency**. Use a full-bleed background (no rounded corners) and save as RGB.
 - Fanart: 1920x1080 JPEG, quality 90, about 100 KB.
 
@@ -101,7 +105,7 @@ docker exec pp photoprism index --cleanup
   - Create an album: `POST /albums {"Title"}`, then `POST /albums/{uid}/photos {"photos":[uids]}`.
   - Check images by their JPEG magic bytes `FF D8`. Check the video with `Range: bytes=0-15`: expect 206 and `ftyp` in the data.
 - **Static checks:**
-  - `kodi-addon-checker --branch omega <dir>`: icon, XML, PO files and dimensions.
+  - `kodi-addon-checker --branch omega <dir>`: icon, XML, PO files and dimensions. **[review]** It needs internet at startup (it downloads the official add-on list, even with `--skip-dependency-checks`) and hangs in offline sandboxes, so it runs in CI. `tests/test_static.py` covers the offline-checkable parts.
   - `Kodistubs` + `mypy --ignore-missing-imports --check-untyped-defs`: checks Kodi API names and arguments.
   - `pyflakes`: unused or undefined names.
   - `vermin -t=3.8- --violations`: Python version compatibility. Remove Python 2 import fallbacks, or vermin will report errors.
@@ -112,8 +116,22 @@ docker exec pp photoprism index --cleanup
 3. Icon transparency rejected by the checker.
 4. Deprecated `ListItem.setInfo` (logs warnings in Omega).
 
+### Bugs found by code review, fixed in 1.0.1 [review]
+Each has a regression test in `tests/test_addon.py`.
+5. `_auth_fingerprint` used the builtin `hash()`. Python salts `str` hashes per interpreter start, so the stored fingerprint never matched after a Kodi restart and the add-on logged in again every time. Use `hashlib.sha256`.
+6. `session.json` was written with `open(..., "w")` and then `chmod 600`, leaving a window with default permissions. Create it with `os.open(..., 0o600)`.
+7. `DiskCache.evict()` treated any path containing `.tmp` as a leftover temp file, so a cache folder such as `/x/.tmpcache` had all its files deleted on every eviction. Match on the file name only.
+
 ## 8. Still unverified (needs real Kodi 21)
 How the screens and settings look (path browser, action button), how SlideShow handles plugin lists, video playback on real hardware, installing `script.module.requests` from the repository, and how the background prefetch behaves under Kodi's plugin process lifetime.
+
+Additional doubts raised by the review **[review, unverified]**:
+- `api.photos()` always sends `public=true`. What this filter does in PhotoPrism (it may hide private photos) was not checked.
+- HTTP 403 is handled like 401: the session is deleted and one retry is made. A genuine "forbidden" (insufficient scope of an app password) would cause a pointless re-login.
+- Root-menu items "Slideshow: all photos" and "Clear cache" are non-folder, non-playable items whose handler never calls `endOfDirectory`. Confirm Kodi accepts this without a spinner or error.
+- `run_prefetch()` joins its threads (60 s timeout each) before the plugin invocation ends.
+- Preview and download tokens are embedded in thumbnail/video/download URLs and can appear in Kodi's debug log.
+- All UI labels in `plugin.py` are hard-coded English; only the settings dialog is translatable via `strings.po`.
 
 ## 9. Reusable prompt snippet
 > Build or extend a Kodi 21 (Python 3) plugin for PhotoPrism /api/v1. Use Bearer auth from POST /session (access_token, config.previewToken, config.downloadToken) or an app password plus GET /config. Page with the X-Count header when merged=true. Thumbnail URL is /t/{hash}/{previewToken}/{size}, video URL is /videos/{hash}/{previewToken}/avc, original is /dl/{hash}?t={downloadToken}. Use the InfoTag API, not setInfo. The icon must be solid RGB 512x512. Test with mocked xbmc modules, kodi-addon-checker --branch omega, Kodistubs+mypy, and a real photoprism/photoprism Docker container.
