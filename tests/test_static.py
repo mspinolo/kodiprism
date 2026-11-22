@@ -42,6 +42,12 @@ code = open(os.path.join(ADDON, "resources", "lib", "plugin.py"), encoding="utf-
 referenced = set(re.findall(r'\bs(?:_int|_bool)?\("([a-z_]+)"', code))
 check(referenced <= ids, "settings read by plugin.py are declared (missing: %s)" % sorted(referenced - ids))
 
+# every action button in settings.xml is routed by plugin.py
+for el in settings.iter("data"):
+    m = re.search(r"action=([a-z_]+)", el.text or "")
+    if m:
+        check('"%s":' % m.group(1) in code, "settings button action '%s' is routed in plugin.py" % m.group(1))
+
 # artwork
 try:
     from PIL import Image

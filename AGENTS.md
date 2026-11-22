@@ -11,7 +11,7 @@ Owner: Michele (`mspinolo`). Target setup: LibreELEC (Omega) 12.2.1 / Kodi 21 ag
 The first version was generated entirely by Claude Opus; the owner made the first commit by hand (the LICENSE).
 
 ## Current status (keep this section honest and up to date)
-- Version **1.0.1** (see `CHANGELOG.md`). License **GPL-3.0** (`LICENSE`, mirrored in `addon.xml`).
+- Version **1.0.2** (see `CHANGELOG.md`). License **GPL-3.0** (`LICENSE`, mirrored in `addon.xml`).
 - Verified in automation: unit/integration tests with mocked `xbmc*` modules against a fake PhotoPrism
   server (`tests/test_addon.py`), offline static checks (`tests/test_static.py`), pyflakes, mypy+Kodistubs.
 - Reported by the previous agent but **not re-verified** by later sessions: `tests/test_live.py` against a real
@@ -31,7 +31,7 @@ assets/                    icon.svg, fanart.svg — sources of the generated art
 docs/knowledge.md          API facts, Kodi patterns, design decisions, testing recipes, known bugs
 .github/workflows/         ci.yml (every push/PR) · release.yml (tag vX.Y.Z -> GitHub Release with the zip)
 ```
-Code size is small (~900 lines): `api.py` REST client, `cache.py` TTL+LRU disk cache, `plugin.py` routing/UI.
+Code is small: `api.py` REST client (URL normalisation, error messages), `cache.py` TTL+LRU disk cache, `logger.py` logging with secret masking, `plugin.py` routing/UI.
 
 ## Commands
 ```
@@ -50,6 +50,7 @@ Live test: `PP_URL=http://host:2342 PP_PASS=... PP_APP=<app password> python3 te
   `tests/test_static.py` fails if a label id is missing or a setting read by the code is undeclared.
 - Bump `version` in `addon.xml` **and** add a `## [x.y.z]` entry to `CHANGELOG.md` together (also enforced).
 - Never commit secrets (passwords, app passwords, tokens). Secrets live only in Kodi settings.
+- Log only through `self.log` (`AddonLog`), never `xbmc.log` directly; register any new secret with `add_secret()`. Tests prove that no secret reaches `debug.log` or `kodi.log`; keep it that way.
 - Generated binaries (`icon.png`, `fanart.jpg`) are committed because the add-on must run from source;
   change the SVG and run `make assets` rather than editing them by hand.
 - Work on a branch and open a PR; releases are cut by pushing a tag `vX.Y.Z` that matches `addon.xml`.

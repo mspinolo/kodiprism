@@ -18,6 +18,34 @@ Download `plugin.image.photoprism-<version>.zip` from the [Releases](https://git
 - **Videos** play through `/api/v1/videos/{hash}/{previewToken}/{format}`.
 - Errors such as timeouts, bad logins, an unreachable server or HTTP errors are shown as Kodi notifications.
 
+## Troubleshooting
+**Server address.** Write it as Kodi must reach it, including the protocol and, unless it is the standard one
+(80 for http, 443 for https), the port: PhotoPrism listens on **2342** by default, so a standard install is
+`http://192.168.1.20:2342`. Behind a reverse proxy on 443 it is just `https://photos.example.com`. Do not use
+`localhost` unless PhotoPrism runs on the same device as Kodi. If you forget `http://` the add-on adds it.
+
+**Test connection.** *Settings > Server > Test connection* checks the address, whether the server answers, the
+login and the library, and tells you which step fails. It uses the *saved* settings, so press OK in the
+settings dialog first.
+
+| Message | Meaning |
+|---|---|
+| Connection refused by host:port | wrong port, or PhotoPrism is not running / not published on that port |
+| Cannot resolve host name | typo in the name, or Kodi's DNS does not know it (try the IP address) |
+| host:port is unreachable | network or firewall problem between Kodi and the server |
+| does not speak HTTPS / TLS certificate error | https on a plain-http port, or a self-signed certificate (turn off *Verify TLS certificates*) |
+| Timeout after N s | server too slow or silently dropping packets; raise the timeout |
+| Authentication failed (401) | server reached, wrong username/password or app password |
+| Not found (404) | the address answers but is not PhotoPrism's root (reverse-proxy path?) |
+
+**Logs.** Turn on *Settings > Troubleshooting > Enable debug logging*, reproduce the problem, then open
+*View add-on log* (newest entries at the bottom). The same lines are in Kodi's own log (`kodi.log`: on
+LibreELEC `/storage/.kodi/temp/kodi.log`; the viewer shows the exact path), prefixed with
+`[plugin.image.photoprism]`. Passwords, app passwords and tokens are masked, so the log can be shared.
+On the PhotoPrism side you can raise its verbosity with `PHOTOPRISM_LOG_LEVEL=debug` (or `trace`) and read it
+with `docker compose logs -f photoprism`; the add-on identifies itself with the `User-Agent`
+`Kodi-PhotoPrism/<version>`, which also shows up in reverse-proxy access logs.
+
 ## Repository layout
 ```
 plugin.image.photoprism/   the add-on as Kodi sees it (default.py, addon.xml, resources/)
@@ -27,7 +55,7 @@ assets/                    SVG sources of icon and fanart
 docs/knowledge.md          API facts, Kodi patterns, design decisions, known bugs
 .github/workflows/         CI (tests, lint, kodi-addon-checker, zip) and tag-based release
 ```
-Inside the add-on: `default.py` is the entry point, `resources/lib/api.py` the REST client, `resources/lib/cache.py` the disk cache and `resources/lib/plugin.py` routing and UI. Settings and strings are under `resources/`, along with `icon.png` (512x512) and `fanart.jpg` (1920x1080), rendered from `assets/*.svg`.
+Inside the add-on: `default.py` is the entry point, `resources/lib/api.py` the REST client, `resources/lib/cache.py` the disk cache, `resources/lib/logger.py` logging (with secret masking) and `resources/lib/plugin.py` routing and UI. Settings and strings are under `resources/`, along with `icon.png` (512x512) and `fanart.jpg` (1920x1080), rendered from `assets/*.svg`.
 
 ## Development
 - `make test` runs `tests/test_addon.py` (add-on with mocked xbmc modules against a fake PhotoPrism server) and `tests/test_static.py` (offline package checks).

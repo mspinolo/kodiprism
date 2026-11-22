@@ -135,3 +135,21 @@ Additional doubts raised by the review **[review, unverified]**:
 
 ## 9. Reusable prompt snippet
 > Build or extend a Kodi 21 (Python 3) plugin for PhotoPrism /api/v1. Use Bearer auth from POST /session (access_token, config.previewToken, config.downloadToken) or an app password plus GET /config. Page with the X-Count header when merged=true. Thumbnail URL is /t/{hash}/{previewToken}/{size}, video URL is /videos/{hash}/{previewToken}/avc, original is /dl/{hash}?t={downloadToken}. Use the InfoTag API, not setInfo. The icon must be solid RGB 512x512. Test with mocked xbmc modules, kodi-addon-checker --branch omega, Kodistubs+mypy, and a real photoprism/photoprism Docker container.
+
+## 9. Diagnostics and logging (1.0.2) [review]
+**Why.** In the first real-Kodi test the add-on could not connect and the only feedback was a notification with the exception class name. 1.0.2 adds clearer errors and logging.
+
+**Design.**
+- `resources/lib/logger.py` (`AddonLog`): sinks are `kodi.log` (prefix `[plugin.image.photoprism]`) and `debug.log` in the add-on profile (rotates at 256 KB to `debug.log.1`). INFO/WARNING/ERROR are always recorded; DEBUG (one line per HTTP request with status and ms) only when the `debug_log` setting is on, and then goes to `kodi.log` at INFO level so Kodi's global debug mode is not required.
+- Masking: exact secrets registered with `add_secret()` (password, app password, session id/token, download token, preview token unless it is the generic `public`) plus regexes for token URL segments (`/t/<hash>/<token>/size`, `/albums/<uid>/t/<token>/size`, `/videos/<hash>/<token>/fmt`, `?t=`, `Bearer`). Tests check this end to end and with deliberate leaks; mutation checks confirmed that they fail when masking is disabled.
+- `api.normalize_base_url()` fixes the address; `api.friendly_error()` maps `requests` exceptions to one actionable sentence; HTTP 401/403/404/429/5xx have their own messages. Messages stay short because they are shown in a Kodi notification.
+- Settings: *Test connection* (`action=test_connection`, text viewer: address, `/api/v1/status` without login, login, version if the config reports one, albums+photos query), *Enable debug logging*, *View add-on log* (`action=show_log`, text viewer), *Clear add-on log*. `tests/test_static.py` checks that each button points to a routed action.
+- Unexpected exceptions in `dispatch()` are logged with a traceback and shown as a notification.
+
+**PhotoPrism side.** Verified in the official config-options documentation: `PHOTOPRISM_LOG_LEVEL` (trace, debug, info, warning, error, fatal, panic), `PHOTOPRISM_DEBUG` ("show non-essential log messages") and `PHOTOPRISM_TRACE` ("show all log messages"). Docker: `docker compose logs -f photoprism`. Not verified: whether PhotoPrism logs each API request at debug/trace level.
+
+**Unverified (needs real Kodi / real PhotoPrism).**
+- That `GET /api/v1/status` answers without authentication (the CLI `photoprism status` is believed to use it). If a PhotoPrism returns 401 the test treats it as "reachable".
+- Whether the settings action buttons see values that were edited but not yet saved. The button label and the README say "uses saved settings"; if Kodi passes unsaved values this can be relaxed.
+- That the config JSON has a `version` key (shown only if present).
+- `xbmcgui.Dialog().textviewer` rendering of ~150 lines, and `special://logpath/kodi.log` resolving on all platforms (the header shows whatever Kodi returns).

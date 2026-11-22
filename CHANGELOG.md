@@ -2,6 +2,25 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versions follow `addon.xml`.
 
+## [1.0.2] - 2026-11-22
+### Added
+- **Troubleshooting** settings section: *Enable debug logging*, *View add-on log* (opens the log inside Kodi, no
+  SSH needed) and *Clear add-on log*; **Test connection** button in the Server section that checks, step by
+  step, the address, reachability, login and library access and shows the result in a text viewer.
+- Add-on log file (`debug.log` in the add-on profile, rotated at 256 KB) in addition to `kodi.log`. With debug
+  logging on, every HTTP request is logged with status and timing (also written to `kodi.log` at INFO level so
+  Kodi's global debug mode is not needed). Passwords, app passwords, session/preview/download tokens and token
+  URL segments are always masked.
+- The add-on sends `User-Agent: Kodi-PhotoPrism/<version>` so its requests can be recognised in proxy logs.
+### Changed
+- The server address is corrected automatically: `http://` is added when missing; spaces, a trailing `/` and a
+  pasted `/api/v1` are removed. Unusable addresses (empty, wrong scheme, bad port, embedded credentials) get a
+  specific message.
+- Connection errors now say what is wrong: connection refused (check the port), unknown host name, host
+  unreachable, TLS/certificate problem, http/https mismatch, timeout, wrong address (404), server error (5xx).
+- Unexpected exceptions are logged with a traceback and shown as a notification instead of failing silently.
+- Error notifications stay on screen for 8 s.
+
 ## [1.0.1] - 2026-11-22
 ### Fixed
 - Session fingerprint used Python's `hash()`, which is randomised per interpreter start, so the saved
