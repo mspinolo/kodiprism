@@ -2,6 +2,13 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versions follow `addon.xml`.
 
+## [1.0.3] - 2026-11-22
+### Fixed
+- Album covers were not displayed on a real server. The add-on used the album-specific cover endpoint
+  (`/albums/<uid>/t/...`); it now uses the album's `Thumb` (cover photo hash) with the normal thumbnail
+  endpoint, the same one photo thumbnails use (and share their cache entries). Albums without a recorded cover
+  still fall back to the old endpoint.
+
 ## [1.0.2] - 2026-11-22
 ### Added
 - **Troubleshooting** settings section: *Enable debug logging*, *View add-on log* (opens the log inside Kodi, no

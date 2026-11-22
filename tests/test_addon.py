@@ -5,7 +5,7 @@ from kodi_mocks import PROFILE, SETTINGS, LOG
 # ---- fake PhotoPrism ----
 PHOTOS = [{"UID": "p%d" % i, "Hash": "h%d" % i, "Title": "Photo %d" % i,
            "Type": "video" if i == 1 else "image", "Duration": 5e9} for i in range(5)]
-ALBUMS = [{"UID": "a%d" % i, "Title": "Album %d" % i, "PhotoCount": i} for i in range(3)]
+ALBUMS = [{"UID": "a%d" % i, "Title": "Album %d" % i, "PhotoCount": i, "Thumb": "ah%d" % i if i < 2 else ""} for i in range(3)]
 HITS = {"session": 0, "photos": 0, "thumb": 0}
 MODE = {"slow": False, "expire": False}
 class H(BaseHTTPRequestHandler):
@@ -57,7 +57,10 @@ run(""); check(len(LOG["items"]) == 10 and LOG["end"] == [True], "root menu")
 run("?action=albums&type=album")
 check(HITS["session"] == 1, "password login via POST /session")
 check([i[0] for i in LOG["items"]] == ["Album 0 (0)", "Album 1 (1)", "[B]Next page >>[/B]"], "album pagination")
-check("/api/v1/albums/a0/t/prev/tile_500" in LOG["items"][0][2], "album cover url w/ preview token")
+check("/api/v1/t/ah0/prev/tile_500" in LOG["items"][0][2] and "/api/v1/t/ah1/prev/tile_500" in LOG["items"][1][2],
+      "album cover uses the album's Thumb hash with the normal thumbnail endpoint")
+run("?action=albums&type=album&offset=2")   # page 2 holds a2, which has no Thumb
+check("/api/v1/albums/a2/t/prev/tile_500" in LOG["items"][0][2], "album without Thumb falls back to the album cover endpoint")
 time.sleep(0.3)
 run("?action=albums&type=album")
 check(HITS["session"] == 1, "session reused from profile")

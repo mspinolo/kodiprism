@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.image.photoprism" name="PhotoPrism" version="1.0.2" provider-name="kodi-photoprism">
+<addon id="plugin.image.photoprism" name="PhotoPrism" version="1.0.3" provider-name="kodi-photoprism">
   <requires>
     <import addon="xbmc.python" version="3.0.1"/>
     <import addon="script.module.requests" version="2.22.0"/>
@@ -10,7 +10,7 @@
   <extension point="xbmc.addon.metadata">
     <summary lang="en_GB">Browse PhotoPrism albums, photos and videos</summary>
     <description lang="en_GB">Browse a local PhotoPrism instance: albums, timeline, search with PhotoPrism query syntax, slideshows and video playback with on-disk caching.</description>
-    <news>1.0.2: server address is corrected automatically (http:// added when missing), clear connection error messages, new Troubleshooting section (test connection, debug log, in-Kodi log viewer). See CHANGELOG.md.</news>
+    <news>1.0.3: album covers are shown (they use the cover photo's normal thumbnail). See CHANGELOG.md.</news>
     <platform>all</platform>
     <license>GPL-3.0-only</license>
     <website>https://github.com/mspinolo/kodiprism</website>

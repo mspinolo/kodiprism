@@ -52,7 +52,7 @@ plugin.image.photoprism/
 
 ### Media URLs (no auth header needed; the token is in the URL)
 - Thumbnail: `/api/v1/t/{fileHash}/{previewToken}/{size}`. Sizes: `tile_224, tile_500, fit_720, fit_1280, fit_1920, fit_2560, fit_3840`.
-- Album cover: `/api/v1/albums/{uid}/t/{previewToken}/tile_500`.
+- Album cover: `/api/v1/albums/{uid}/t/{previewToken}/tile_500`. **[review]** On the owner's real server (1.0.2) covers did not show with this endpoint while photo thumbnails did. The album JSON has `Thumb` (hash of the cover photo), so since 1.0.3 covers use `/api/v1/t/{Thumb}/{previewToken}/{size}`; this endpoint is kept only as a fallback when `Thumb` is empty. Root cause of the old failure not confirmed (the debug log would show the HTTP status of the `fetch` line).
 - Video: `/api/v1/videos/{hash}/{previewToken}/{avc|hevc|vp9|av01}`. Returns `video/mp4` and supports Range requests (206). Prefer the hash of the video file in `Files[]`; the photo's own hash also worked.
 - Original file: `/api/v1/dl/{hash}?t={downloadToken}`.
 

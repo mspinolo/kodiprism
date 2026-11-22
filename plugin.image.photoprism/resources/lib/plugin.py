@@ -218,8 +218,13 @@ class Plugin(object):
             title = a.get("Title") or uid
             n = a.get("PhotoCount")
             label = "%s (%s)" % (title, n) if n is not None else title
-            art = self.thumb("album|%s|%s" % (uid, self.thumb_size),
-                             api.album_cover_url(uid, self.thumb_size))
+            cover = a.get("Thumb")
+            if cover:
+                # Same endpoint (and cache entry) as photo thumbnails, which is known to work.
+                art = self.thumb("t|%s|%s" % (cover, self.thumb_size), api.thumb_url(cover, self.thumb_size))
+            else:  # no cover photo recorded: fall back to the album-specific endpoint
+                art = self.thumb("album|%s|%s" % (uid, self.thumb_size),
+                                 api.album_cover_url(uid, self.thumb_size))
             li = xbmcgui.ListItem(label)
             li.setArt({"thumb": art, "icon": art, "fanart": FANART})
             li.addContextMenuItems([("Slideshow", "RunPlugin(%s)" % self.url(action="slideshow", album=uid))])
