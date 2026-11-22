@@ -18,9 +18,8 @@ The first version was generated entirely by Claude Opus; the owner made the firs
   PhotoPrism Docker container (needs `PP_PASS`, `PP_APP`, `PP_URL`).
 - **Never verified inside a real Kodi.** Screens, settings dialog, SlideShow over a plugin list, video
   playback and prefetch thread behaviour are all unconfirmed. This is the biggest open risk.
-- `kodi-addon-checker` needs internet (it downloads the official add-on list), so it is meant to run in CI,
-  not in offline sandboxes. **It has never been seen to pass on this repo yet.** Do not claim it did unless
-  you actually saw it finish.
+- `kodi-addon-checker` needs internet (it downloads the official add-on list), so it runs in CI
+  (`.github/workflows/ci.yml`), not in offline sandboxes. Check the CI result before claiming it passes.
 
 ## Repository map
 ```
@@ -30,7 +29,7 @@ tests/                     kodi_mocks.py (fake xbmc modules) · test_addon.py ·
 tools/                     build_zip.py (-> dist/, gitignored) · render_assets.py (assets/*.svg -> icon/fanart)
 assets/                    icon.svg, fanart.svg — sources of the generated artwork
 docs/knowledge.md          API facts, Kodi patterns, design decisions, testing recipes, known bugs
-docs/ci/                   ready-to-use GitHub Actions workflows, NOT YET ACTIVE (see below)
+.github/workflows/         ci.yml (every push/PR) · release.yml (tag vX.Y.Z -> GitHub Release with the zip)
 ```
 Code size is small (~900 lines): `api.py` REST client, `cache.py` TTL+LRU disk cache, `plugin.py` routing/UI.
 
@@ -58,10 +57,6 @@ Live test: `PP_URL=http://host:2342 PP_PASS=... PP_APP=<app password> python3 te
   `[verified]` only if you ran it yourself.
 
 ## Open items / backlog (highest value first)
-0. **Activate CI**: the workflows are in `docs/ci/` because the token used for the restructure lacked the
-   `workflow` permission. Move them with `git mv docs/ci/*.yml .github/workflows/` (create the folder) using a
-   token that has *Workflows: read and write*, or add them through the GitHub web UI. `ci.yml` runs tests, lint,
-   build and `kodi-addon-checker`; `release.yml` publishes a Release when you push a tag `vX.Y.Z`.
 1. **Test in the real Kodi** (LibreELEC 12.2.1): install the zip, check settings UI, album/photo browsing,
    slideshow, video playback, cache folder picker, "Clear cache" button.
 2. **Localisation**: labels in `plugin.py` ("Albums", "Next page >>", notifications...) are hard-coded

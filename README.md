@@ -25,7 +25,7 @@ tests/                     mocked-Kodi tests, live-server test, offline static c
 tools/                     build_zip.py, render_assets.py
 assets/                    SVG sources of icon and fanart
 docs/knowledge.md          API facts, Kodi patterns, design decisions, known bugs
-docs/ci/                   GitHub Actions workflows (to be moved into .github/workflows/)
+.github/workflows/         CI (tests, lint, kodi-addon-checker, zip) and tag-based release
 ```
 Inside the add-on: `default.py` is the entry point, `resources/lib/api.py` the REST client, `resources/lib/cache.py` the disk cache and `resources/lib/plugin.py` routing and UI. Settings and strings are under `resources/`, along with `icon.png` (512x512) and `fanart.jpg` (1920x1080), rendered from `assets/*.svg`.
 
@@ -33,5 +33,5 @@ Inside the add-on: `default.py` is the entry point, `resources/lib/api.py` the R
 - `make test` runs `tests/test_addon.py` (add-on with mocked xbmc modules against a fake PhotoPrism server) and `tests/test_static.py` (offline package checks).
 - `make lint` runs pyflakes and mypy (`pip install pyflakes mypy Kodistubs`). `make build` creates the zip. `make assets` re-renders the artwork (`pip install cairosvg pillow`).
 - `PP_PASS=... PP_APP=<app password> PP_URL=http://host:2342 python3 tests/test_live.py` runs the add-on against a real PhotoPrism server. It expects an album named "Kodi Test" with 2 photos.
-- Ready-made GitHub Actions workflows are in `docs/ci/` (not active until moved to `.github/workflows/`): `ci.yml` runs all of the above plus `kodi-addon-checker --branch omega`; `release.yml` publishes a GitHub Release with the zip when you push a tag `vX.Y.Z` that matches `addon.xml`.
+- GitHub Actions (`.github/workflows/`): `ci.yml` runs all of the above plus `kodi-addon-checker --branch omega`; `release.yml` publishes a GitHub Release with the zip when you push a tag `vX.Y.Z` that matches `addon.xml`.
 - Contributors and AI agents: read [AGENTS.md](AGENTS.md) first.

@@ -1,7 +1,7 @@
 """Offline static checks of the add-on package (no Kodi, no network).
 
 This does NOT replace `kodi-addon-checker --branch omega`, which needs internet
-access to the official Kodi repository and runs in CI (docs/ci/ci.yml once activated).
+access to the official Kodi repository and runs in CI (.github/workflows/ci.yml).
 """
 import os
 import re
