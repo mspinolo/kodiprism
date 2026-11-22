@@ -1,0 +1,97 @@
+# Kodi Media Center language file
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: en_GB\n"
+
+msgctxt "#30000"
+msgid "Server"
+msgstr ""
+
+msgctxt "#30001"
+msgid "PhotoPrism URL"
+msgstr ""
+
+msgctxt "#30002"
+msgid "Login method"
+msgstr ""
+
+msgctxt "#30003"
+msgid "Username + password"
+msgstr ""
+
+msgctxt "#30004"
+msgid "App password / access token"
+msgstr ""
+
+msgctxt "#30005"
+msgid "Username"
+msgstr ""
+
+msgctxt "#30006"
+msgid "Password"
+msgstr ""
+
+msgctxt "#30007"
+msgid "App password or access token"
+msgstr ""
+
+msgctxt "#30008"
+msgid "Verify TLS certificates"
+msgstr ""
+
+msgctxt "#30009"
+msgid "Request timeout (s)"
+msgstr ""
+
+msgctxt "#30020"
+msgid "Browsing"
+msgstr ""
+
+msgctxt "#30021"
+msgid "Items per page"
+msgstr ""
+
+msgctxt "#30022"
+msgid "Thumbnail size"
+msgstr ""
+
+msgctxt "#30023"
+msgid "Slideshow / full image size"
+msgstr ""
+
+msgctxt "#30024"
+msgid "Prefetch thumbnails"
+msgstr ""
+
+msgctxt "#30025"
+msgid "Prefetch threads"
+msgstr ""
+
+msgctxt "#30026"
+msgid "Video format"
+msgstr ""
+
+msgctxt "#30040"
+msgid "Cache"
+msgstr ""
+
+msgctxt "#30041"
+msgid "Enable disk cache"
+msgstr ""
+
+msgctxt "#30042"
+msgid "Cache location (empty = add-on profile)"
+msgstr ""
+
+msgctxt "#30043"
+msgid "Max cache size (MB)"
+msgstr ""
+
+msgctxt "#30044"
+msgid "Cache lifetime (hours)"
+msgstr ""
+
+msgctxt "#30045"
+msgid "Clear cache"
+msgstr ""

@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<settings version="1">
+  <section id="plugin.image.photoprism">
+    <category id="server" label="30000">
+      <group id="1">
+        <setting id="server_url" type="string" label="30001">
+          <level>0</level><default>http://localhost:2342</default>
+          <constraints><allowempty>false</allowempty></constraints>
+          <control type="edit" format="string"><heading>30001</heading></control>
+        </setting>
+        <setting id="auth_mode" type="integer" label="30002">
+          <level>0</level><default>0</default>
+          <constraints><options>
+            <option label="30003">0</option>
+            <option label="30004">1</option>
+          </options></constraints>
+          <control type="list" format="string"/>
+        </setting>
+        <setting id="username" type="string" label="30005">
+          <level>0</level><default/>
+          <constraints><allowempty>true</allowempty></constraints>
+          <dependencies><dependency type="visible" setting="auth_mode">0</dependency></dependencies>
+          <control type="edit" format="string"><heading>30005</heading></control>
+        </setting>
+        <setting id="password" type="string" label="30006">
+          <level>0</level><default/>
+          <constraints><allowempty>true</allowempty></constraints>
+          <dependencies><dependency type="visible" setting="auth_mode">0</dependency></dependencies>
+          <control type="edit" format="string"><heading>30006</heading><hidden>true</hidden></control>
+        </setting>
+        <setting id="token" type="string" label="30007">
+          <level>0</level><default/>
+          <constraints><allowempty>true</allowempty></constraints>
+          <dependencies><dependency type="visible" setting="auth_mode">1</dependency></dependencies>
+          <control type="edit" format="string"><heading>30007</heading><hidden>true</hidden></control>
+        </setting>
+        <setting id="verify_ssl" type="boolean" label="30008">
+          <level>1</level><default>true</default><control type="toggle"/>
+        </setting>
+        <setting id="timeout" type="integer" label="30009">
+          <level>1</level><default>15</default>
+          <constraints><minimum>3</minimum><step>1</step><maximum>120</maximum></constraints>
+          <control type="slider" format="integer"/>
+        </setting>
+      </group>
+    </category>
+    <category id="browse" label="30020">
+      <group id="1">
+        <setting id="page_size" type="integer" label="30021">
+          <level>0</level><default>60</default>
+          <constraints><minimum>10</minimum><step>10</step><maximum>500</maximum></constraints>
+          <control type="slider" format="integer"/>
+        </setting>
+        <setting id="thumb_size" type="string" label="30022">
+          <level>0</level><default>tile_500</default>
+          <constraints><options>
+            <option>tile_224</option><option>tile_500</option><option>fit_720</option><option>fit_1280</option>
+          </options></constraints>
+          <control type="spinner" format="string"/>
+        </setting>
+        <setting id="full_size" type="string" label="30023">
+          <level>0</level><default>fit_1920</default>
+          <constraints><options>
+            <option>fit_1280</option><option>fit_1920</option><option>fit_2560</option><option>fit_3840</option><option>original</option>
+          </options></constraints>
+          <control type="spinner" format="string"/>
+        </setting>
+        <setting id="prefetch" type="boolean" label="30024">
+          <level>0</level><default>true</default><control type="toggle"/>
+        </setting>
+        <setting id="prefetch_threads" type="integer" label="30025">
+          <level>1</level><default>4</default>
+          <constraints><minimum>1</minimum><step>1</step><maximum>16</maximum></constraints>
+          <dependencies><dependency type="enable" setting="prefetch">true</dependency></dependencies>
+          <control type="slider" format="integer"/>
+        </setting>
+        <setting id="video_format" type="string" label="30026">
+          <level>1</level><default>avc</default>
+          <constraints><options><option>avc</option><option>hevc</option><option>vp9</option><option>av01</option></options></constraints>
+          <control type="spinner" format="string"/>
+        </setting>
+      </group>
+    </category>
+    <category id="cache" label="30040">
+      <group id="1">
+        <setting id="cache_enabled" type="boolean" label="30041">
+          <level>0</level><default>true</default><control type="toggle"/>
+        </setting>
+        <setting id="cache_path" type="path" label="30042">
+          <level>0</level><default/>
+          <constraints><allowempty>true</allowempty><writable>true</writable></constraints>
+          <control type="button" format="path"><heading>30042</heading></control>
+        </setting>
+        <setting id="cache_max_mb" type="integer" label="30043">
+          <level>0</level><default>500</default>
+          <constraints><minimum>50</minimum><step>50</step><maximum>20000</maximum></constraints>
+          <control type="edit" format="integer"><heading>30043</heading></control>
+        </setting>
+        <setting id="cache_ttl_hours" type="integer" label="30044">
+          <level>0</level><default>24</default>
+          <constraints><minimum>1</minimum><step>1</step><maximum>720</maximum></constraints>
+          <control type="edit" format="integer"><heading>30044</heading></control>
+        </setting>
+        <setting id="clear_cache" type="action" label="30045">
+          <level>0</level><data>RunPlugin(plugin://plugin.image.photoprism/?action=clear_cache)</data>
+          <constraints><allowempty>true</allowempty></constraints>
+          <control type="button" format="action"/>
+        </setting>
+      </group>
+    </category>
+  </section>
+</settings>
