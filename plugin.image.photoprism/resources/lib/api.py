@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """Minimal PhotoPrism REST client (/api/v1)."""
 import json
+import time
 
-from urllib.parse import urlencode, quote
+from urllib.parse import urlencode, quote, urlparse
 
 import requests
 
@@ -15,11 +16,75 @@ class AuthError(ApiError):
     pass
 
 
+class _NullLog(object):
+    def debug(self, msg): pass
+    def info(self, msg): pass
+    def warning(self, msg): pass
+    def error(self, msg): pass
+
+
+def normalize_base_url(url):
+    """Turn what the user typed into a usable base URL.
+
+    '192.168.1.10:2342' -> 'http://192.168.1.10:2342'; surrounding spaces, a trailing '/'
+    and a pasted '/api/v1' are removed. Raises ApiError for addresses that cannot work.
+    """
+    raw = (url or "").strip()
+    if not raw:
+        raise ApiError("Server address is empty - set it in the add-on settings")
+    u = raw if "://" in raw else "http://" + raw
+    parts = urlparse(u)
+    if parts.scheme.lower() not in ("http", "https") or not parts.hostname:
+        raise ApiError("Invalid server address '%s' - use the form http://host:2342" % raw)
+    try:
+        parts.port
+    except ValueError:
+        raise ApiError("Invalid port in server address '%s'" % raw)
+    if parts.username or parts.password:
+        raise ApiError("Do not put username/password in the address - use the login fields")
+    path = parts.path.rstrip("/")
+    if path.endswith("/api/v1"):
+        path = path[:-len("/api/v1")]
+    return "%s://%s%s" % (parts.scheme.lower(), parts.netloc, path)
+
+
+def friendly_error(exc, base, timeout):
+    """One short, actionable sentence for a failed HTTP request (fits a Kodi notification)."""
+    parts = urlparse(base)
+    hostport = parts.netloc or base
+    host = parts.hostname or base
+    low = str(exc).lower()
+    if isinstance(exc, requests.exceptions.SSLError):
+        if "wrong_version_number" in low or "wrong version number" in low:
+            return "%s does not speak HTTPS - try http:// instead of https://" % hostport
+        return ("TLS/certificate error with %s - fix the certificate or turn off "
+                "'Verify TLS certificates'" % hostport)
+    if isinstance(exc, requests.exceptions.Timeout):
+        return "Timeout after %ss contacting %s" % (timeout, hostport)
+    if isinstance(exc, (requests.exceptions.MissingSchema, requests.exceptions.InvalidSchema,
+                        requests.exceptions.InvalidURL)):
+        return "Invalid server address '%s' - use the form http://host:2342" % base
+    if isinstance(exc, requests.exceptions.ConnectionError):
+        if any(k in low for k in ("name or service not known", "failed to resolve", "getaddrinfo",
+                                  "nodename nor servname", "name resolution")):
+            return "Cannot resolve host name '%s' - check the address" % host
+        if "refused" in low or "errno 111" in low or "winerror 10061" in low:
+            return "Connection refused by %s - check the port and that PhotoPrism is running" % hostport
+        if any(k in low for k in ("no route to host", "network is unreachable", "errno 113", "errno 101")):
+            return "%s is unreachable - check the network and the address" % hostport
+        if any(k in low for k in ("connection aborted", "remotedisconnected", "connection reset", "errno 104")):
+            return "%s closed the connection - wrong port, or http/https mismatch?" % hostport
+        return "Cannot connect to %s (%s)" % (hostport, exc.__class__.__name__)
+    return "Request to %s failed (%s)" % (hostport, exc.__class__.__name__)
+
+
 class PhotoPrism(object):
-    def __init__(self, base_url, timeout=15, verify=True, session=None):
-        self.base = base_url.rstrip("/")
+    def __init__(self, base_url, timeout=15, verify=True, session=None, log=None, user_agent=None):
+        self.base = normalize_base_url(base_url)
         self.timeout = timeout
         self.verify = verify
+        self.log = log or _NullLog()
+        self.user_agent = user_agent or "Kodi-PhotoPrism"
         self.http = session or requests.Session()
         self.token = None
         self.preview_token = "public"
@@ -28,7 +93,7 @@ class PhotoPrism(object):
 
     # ---- low level ----
     def _headers(self):
-        h = {"Accept": "application/json", "User-Agent": "Kodi-PhotoPrism/1.0.1"}
+        h = {"Accept": "application/json", "User-Agent": self.user_agent}
         if self.token:
             h["Authorization"] = "Bearer " + self.token
             h["X-Auth-Token"] = self.token
@@ -36,16 +101,29 @@ class PhotoPrism(object):
 
     def _req(self, method, path, params=None, body=None, raw=False, with_rows=False):
         url = self.base + "/api/v1" + path
+        t0 = time.time()
         try:
             r = self.http.request(method, url, params=params, headers=self._headers(),
                                   data=json.dumps(body) if body is not None else None,
                                   timeout=self.timeout, verify=self.verify)
-        except requests.exceptions.Timeout:
-            raise ApiError("Timeout contacting PhotoPrism")
         except requests.exceptions.RequestException as e:
-            raise ApiError("Connection failed: %s" % e.__class__.__name__)
-        if r.status_code in (401, 403):
-            raise AuthError("Authentication failed (%d)" % r.status_code)
+            msg = friendly_error(e, self.base, self.timeout)
+            self.log.warning("%s %s failed: %s [%s: %s]" % (method, path, msg, e.__class__.__name__, e))
+            raise ApiError(msg)
+        self.log.debug("%s %s%s -> HTTP %d (%d ms)" % (
+            method, path, " " + str(params) if params else "", r.status_code,
+            int((time.time() - t0) * 1000)))
+        if r.status_code == 401:
+            raise AuthError("Authentication failed (401) - check username/password or app password")
+        if r.status_code == 403:
+            raise AuthError("Access denied (403) - check the account permissions / app password scope")
+        if r.status_code == 404:
+            raise ApiError("Not found (404) for %s - is %s really PhotoPrism (not a proxy path)?"
+                           % (path, urlparse(self.base).netloc))
+        if r.status_code == 429:
+            raise ApiError("Too many requests (429) - wait a moment and try again")
+        if r.status_code >= 500:
+            raise ApiError("Server error (HTTP %d) from %s" % (r.status_code, urlparse(self.base).netloc))
         if r.status_code >= 400:
             raise ApiError("HTTP %d for %s" % (r.status_code, path))
         if raw:
@@ -53,7 +131,8 @@ class PhotoPrism(object):
         try:
             data = r.json()
         except ValueError:
-            raise ApiError("Invalid JSON from server")
+            self.log.warning("%s %s returned a non-JSON body: %r" % (method, path, r.text[:120]))
+            raise ApiError("Invalid JSON from server - is %s really PhotoPrism?" % urlparse(self.base).netloc)
         if with_rows:
             # X-Count = number of DB rows consumed. With merged=true several rows
             # (files) collapse into one photo, so len(data) can be < count.
@@ -63,6 +142,13 @@ class PhotoPrism(object):
                 rows = len(data or [])
             return {"items": data or [], "rows": rows}
         return data
+
+    def ping(self):
+        """GET /status without logging in: is this address a reachable PhotoPrism?
+        Returns (milliseconds, first bytes of the body)."""
+        t0 = time.time()
+        body = self._req("GET", "/status", raw=True)
+        return int((time.time() - t0) * 1000), body[:80].decode("utf-8", "replace")
 
     def _apply_config(self, cfg):
         cfg = cfg or {}
@@ -79,11 +165,14 @@ class PhotoPrism(object):
         self._apply_config(data.get("config"))
         if not data.get("config"):
             self.refresh_config()
+        self.log.info("Logged in as '%s'" % username)
         return data
 
     def login_token(self, token):
         self.token = token
-        self.refresh_config()
+        cfg = self.refresh_config()
+        self.log.info("Authenticated with app password / access token")
+        return cfg
 
     def restore(self, state):
         self.token = state.get("token")
@@ -96,7 +185,9 @@ class PhotoPrism(object):
                 "preview_token": self.preview_token, "download_token": self.download_token}
 
     def refresh_config(self):
-        self._apply_config(self._req("GET", "/config"))
+        cfg = self._req("GET", "/config")
+        self._apply_config(cfg)
+        return cfg
 
     # ---- data ----
     def albums(self, count=60, offset=0, atype="album", q=""):
@@ -149,8 +240,11 @@ class PhotoPrism(object):
         return "%s/api/v1/videos/%s/%s/%s" % (self.base, file_hash, quote(self.preview_token), fmt)
 
     def fetch_bytes(self, url):
+        t0 = time.time()
         try:
             r = self.http.get(url, headers=self._headers(), timeout=self.timeout, verify=self.verify)
-        except requests.exceptions.RequestException:
+        except requests.exceptions.RequestException as e:
+            self.log.debug("fetch %s failed: %s: %s" % (url, e.__class__.__name__, e))
             return None
+        self.log.debug("fetch %s -> HTTP %d (%d ms)" % (url, r.status_code, int((time.time() - t0) * 1000)))
         return r.content if r.status_code == 200 else None

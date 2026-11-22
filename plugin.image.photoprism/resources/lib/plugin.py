@@ -14,8 +14,9 @@ import xbmcgui
 import xbmcplugin
 import xbmcvfs
 
-from resources.lib.api import PhotoPrism, ApiError, AuthError
+from resources.lib.api import PhotoPrism, ApiError, AuthError, normalize_base_url
 from resources.lib.cache import DiskCache, resolve_dir
+from resources.lib.logger import AddonLog
 
 ADDON = xbmcaddon.Addon()
 ADDON_ID = ADDON.getAddonInfo("id")
@@ -25,14 +26,10 @@ FANART = ADDON.getAddonInfo("fanart")
 PROFILE = xbmcvfs.translatePath(ADDON.getAddonInfo("profile"))
 
 
-def log(msg, level=xbmc.LOGINFO):
-    xbmc.log("[%s] %s" % (ADDON_ID, msg), level)
-
-
 def notify(msg, error=True):
     xbmcgui.Dialog().notification(NAME, msg,
                                   xbmcgui.NOTIFICATION_ERROR if error else xbmcgui.NOTIFICATION_INFO,
-                                  5000)
+                                  8000 if error else 5000)
 
 
 def s(key):
@@ -58,12 +55,15 @@ class Plugin(object):
         self.page_size = s_int("page_size", 60)
         self.thumb_size = s("thumb_size") or "tile_500"
         self.full_size = s("full_size") or "fit_1920"
+        self.log = AddonLog(ADDON_ID, PROFILE, s_bool("debug_log"))
+        self.log.add_secret(s("password"), s("token"))
+        self.user_agent = "Kodi-PhotoPrism/%s" % (ADDON.getAddonInfo("version") or "dev")
         if not os.path.isdir(PROFILE):
             os.makedirs(PROFILE, exist_ok=True)
         user_dir = xbmcvfs.translatePath(s("cache_path")) if s("cache_path") else ""
         root, fell_back = resolve_dir(user_dir, PROFILE)
         if fell_back:
-            log("Cache path %r not usable, falling back to %s" % (user_dir, root), xbmc.LOGWARNING)
+            self.log.warning("Cache path %r not usable, falling back to %s" % (user_dir, root))
             notify("Cache folder not writable - using add-on profile")
         self.cache = DiskCache(root, s_int("cache_max_mb", 500), s_int("cache_ttl_hours", 24),
                                s_bool("cache_enabled") if s("cache_enabled") else True)
@@ -83,11 +83,17 @@ class Plugin(object):
     def connect(self):
         if self.api:
             return self.api
-        server = s("server_url").strip()
-        if not server:
+        raw = s("server_url").strip()
+        if not raw:
             raise AuthError("Set the PhotoPrism URL in settings")
+        server = normalize_base_url(raw)
+        if server != raw.rstrip("/"):
+            self.log.info("Server address %r normalised to %r" % (raw, server))
+        self.log.debug("Connecting to %s (login method: %s)" % (
+            server, "app password" if s("auth_mode") == "1" else "username/password"))
         api = PhotoPrism(server, timeout=s_int("timeout", 15),
-                         verify=s_bool("verify_ssl") if s("verify_ssl") else True)
+                         verify=s_bool("verify_ssl") if s("verify_ssl") else True,
+                         log=self.log, user_agent=self.user_agent)
         state_file = os.path.join(PROFILE, "session.json")
         fp = self._auth_fingerprint()
         try:
@@ -95,6 +101,8 @@ class Plugin(object):
                 st = json.load(fh)
             if st.get("fp") == fp:
                 api.restore(st)
+                self._register_secrets(api)
+                self.log.debug("Reusing saved session")
                 self.api = api
                 return api
         except (OSError, ValueError):
@@ -118,8 +126,15 @@ class Plugin(object):
             os.chmod(state_file, 0o600)  # also tighten a pre-existing file
         except OSError:
             pass
+        self._register_secrets(api)
         self.api = api
         return api
+
+    def _register_secrets(self, api):
+        """Make sure session/preview/download tokens can never be written to a log."""
+        self.log.add_secret(api.token, api.session_id, api.download_token)
+        if api.preview_token != "public":  # "public" is a generic word, not a secret
+            self.log.add_secret(api.preview_token)
 
     def invalidate_session(self):
         try:
@@ -316,16 +331,84 @@ class Plugin(object):
         n = self.cache.clear()
         notify("Cache cleared (%d files)" % n, error=False)
 
+    def test_connection(self):
+        """Step-by-step connection check shown in a text viewer. Uses the *saved* settings."""
+        lines = []
+
+        def step(ok, text):
+            lines.append("[%s] %s" % ("OK  " if ok else "FAIL", text))
+            self.log.info("test_connection: %s" % lines[-1])
+
+        raw = s("server_url").strip()
+        lines.append("Server address entered: %s" % (raw or "(empty)"))
+        passed = False
+        try:
+            base = normalize_base_url(raw)
+            step(True, "Address used: %s%s" % (base, "" if base == raw else "  (corrected automatically)"))
+            api = PhotoPrism(base, timeout=s_int("timeout", 15),
+                             verify=s_bool("verify_ssl") if s("verify_ssl") else True,
+                             log=self.log, user_agent=self.user_agent)
+            try:
+                ms, body = api.ping()
+                step(True, "Server reachable in %d ms (status: %s)" % (ms, body.strip() or "empty reply"))
+            except AuthError:
+                step(True, "Server reachable (its status page asks for a login)")
+            if s("auth_mode") == "1":
+                if not s("token").strip():
+                    raise AuthError("No app password / access token entered in settings")
+                cfg = api.login_token(s("token").strip())
+                who = "App password / access token accepted"
+            else:
+                if not s("username"):
+                    raise AuthError("No username entered in settings")
+                cfg = api.login_password(s("username"), s("password")).get("config") or {}
+                who = "Logged in as '%s'" % s("username")
+            self._register_secrets(api)
+            step(True, who)
+            if cfg.get("version"):
+                step(True, "PhotoPrism version: %s" % cfg.get("version"))
+            api.albums(count=1)
+            api.photos(count=1)
+            step(True, "Library readable (albums and photos queries answered)")
+            passed = True
+        except ApiError as e:
+            step(False, str(e))
+        lines.append("")
+        if passed:
+            lines.append("All checks passed. If browsing still fails, enable debug logging in")
+            lines.append("Troubleshooting, retry, then open 'View add-on log'.")
+        else:
+            lines.append("Fix the first [FAIL] line above and run the test again.")
+            lines.append("More detail: Settings > Troubleshooting > View add-on log.")
+        lines.append("")
+        lines.append("This test uses the saved settings: press OK in the settings dialog first.")
+        xbmcgui.Dialog().textviewer("PhotoPrism - connection test", "\n".join(lines))
+
+    def show_log(self):
+        header = ["Add-on log: %s" % self.log.path,
+                  "Kodi log:   %s   (search for [%s])" % (xbmcvfs.translatePath("special://logpath/kodi.log"), ADDON_ID),
+                  "Debug logging: %s" % ("ON" if self.log.debug_enabled
+                                         else "OFF - turn it on in Troubleshooting to record every request"),
+                  "Newest entries are at the bottom.", "-" * 40]
+        xbmcgui.Dialog().textviewer("PhotoPrism - add-on log",
+                                    "\n".join(header) + "\n" + (self.log.tail(150) or "(the log is empty)\n"))
+
+    def clear_log(self):
+        self.log.clear()
+        notify("Add-on log cleared", error=False)
+
     def dispatch(self):
         self._prefetch = []
         action = self.params.get("action")
         routes = {None: self.root, "albums": self.albums, "photos": self.photos,
                   "search": self.search, "play": self.play, "slideshow": self.slideshow,
-                  "clear_cache": self.clear_cache}
+                  "clear_cache": self.clear_cache, "test_connection": self.test_connection,
+                  "show_log": self.show_log, "clear_log": self.clear_log}
         fn = routes.get(action)
         if fn is None:
-            log("Unknown action %s" % action, xbmc.LOGWARNING)
+            self.log.warning("Unknown action %s" % action)
             return
+        self.log.debug("action=%s params=%s" % (action, self.params))
         try:
             try:
                 fn()
@@ -336,11 +419,16 @@ class Plugin(object):
                 self._prefetch = []
                 fn()
         except AuthError as e:
+            self.log.warning("Action %s: %s" % (action, e))
             notify(str(e))
             self._fail(action)
         except ApiError as e:
-            log("API error: %s" % e, xbmc.LOGERROR)
+            self.log.error("Action %s failed: %s" % (action, e))
             notify(str(e))
+            self._fail(action)
+        except Exception:
+            self.log.exception("Unexpected error in action %r" % action)
+            notify("Unexpected error - see Settings > Troubleshooting > View add-on log")
             self._fail(action)
         else:
             if self.api:

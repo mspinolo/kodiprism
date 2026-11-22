@@ -42,6 +42,11 @@
           <constraints><minimum>3</minimum><step>1</step><maximum>120</maximum></constraints>
           <control type="slider" format="integer"/>
         </setting>
+        <setting id="test_connection" type="action" label="30062">
+          <level>0</level><data>RunPlugin(plugin://plugin.image.photoprism/?action=test_connection)</data>
+          <constraints><allowempty>true</allowempty></constraints>
+          <control type="button" format="action"/>
+        </setting>
       </group>
     </category>
     <category id="browse" label="30020">
@@ -103,6 +108,23 @@
         </setting>
         <setting id="clear_cache" type="action" label="30045">
           <level>0</level><data>RunPlugin(plugin://plugin.image.photoprism/?action=clear_cache)</data>
+          <constraints><allowempty>true</allowempty></constraints>
+          <control type="button" format="action"/>
+        </setting>
+      </group>
+    </category>
+    <category id="troubleshooting" label="30060">
+      <group id="1">
+        <setting id="debug_log" type="boolean" label="30061">
+          <level>0</level><default>false</default><control type="toggle"/>
+        </setting>
+        <setting id="show_log" type="action" label="30063">
+          <level>0</level><data>RunPlugin(plugin://plugin.image.photoprism/?action=show_log)</data>
+          <constraints><allowempty>true</allowempty></constraints>
+          <control type="button" format="action"/>
+        </setting>
+        <setting id="clear_log" type="action" label="30064">
+          <level>0</level><data>RunPlugin(plugin://plugin.image.photoprism/?action=clear_log)</data>
           <constraints><allowempty>true</allowempty></constraints>
           <control type="button" format="action"/>
         </setting>

@@ -17,11 +17,12 @@ PROFILE = tempfile.mkdtemp()
 SETTINGS = {"server_url": "", "auth_mode": "0", "username": "admin", "password": "pw", "token": "",
             "page_size": "2", "thumb_size": "tile_500", "full_size": "fit_1920", "prefetch": "true",
             "prefetch_threads": "2", "cache_enabled": "true", "cache_path": "", "cache_max_mb": "500",
-            "cache_ttl_hours": "24", "timeout": "3", "verify_ssl": "true", "video_format": "avc"}
-LOG = {"items": [], "notes": [], "end": [], "resolved": [], "builtin": []}
+            "cache_ttl_hours": "24", "timeout": "3", "verify_ssl": "true", "video_format": "avc",
+            "debug_log": "false"}
+LOG = {"items": [], "notes": [], "end": [], "resolved": [], "builtin": [], "klog": [], "text": []}
 def mod(n): m = types.ModuleType(n); sys.modules[n] = m; return m
-x = mod("xbmc"); x.LOGINFO, x.LOGWARNING, x.LOGERROR = 1, 2, 3
-x.log = lambda m, l=1: None
+x = mod("xbmc"); x.LOGDEBUG, x.LOGINFO, x.LOGWARNING, x.LOGERROR = 0, 1, 2, 3
+x.log = lambda m, l=1: LOG["klog"].append((l, m))
 x.executebuiltin = lambda c: LOG["builtin"].append(c)
 class KB:
     def __init__(s, *a): pass
@@ -32,7 +33,7 @@ x.Keyboard = KB
 a = mod("xbmcaddon")
 class Addon:
     def getSetting(s, k): return SETTINGS.get(k, "")
-    def getAddonInfo(s, k): return {"id": "plugin.image.photoprism", "name": "PhotoPrism", "profile": PROFILE}.get(k, "")
+    def getAddonInfo(s, k): return {"id": "plugin.image.photoprism", "name": "PhotoPrism", "profile": PROFILE, "version": "9.9.9"}.get(k, "")
 a.Addon = Addon
 g = mod("xbmcgui"); g.NOTIFICATION_ERROR, g.NOTIFICATION_INFO = "e", "i"
 class LI:
@@ -52,6 +53,7 @@ class Tag:
 g.ListItem = LI
 class D:
     def notification(s, h, m, *a): LOG["notes"].append(m)
+    def textviewer(s, h, t, *a): LOG["text"].append((h, t))
 g.Dialog = D
 p = mod("xbmcplugin")
 p.addDirectoryItem = lambda h, u, li, f=False: LOG["items"].append((li.label, u, li.art.get("thumb"), f))

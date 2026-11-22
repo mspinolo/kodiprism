@@ -95,3 +95,23 @@ msgstr ""
 msgctxt "#30045"
 msgid "Clear cache"
 msgstr ""
+
+msgctxt "#30060"
+msgid "Troubleshooting"
+msgstr ""
+
+msgctxt "#30061"
+msgid "Enable debug logging (records every request)"
+msgstr ""
+
+msgctxt "#30062"
+msgid "Test connection (uses saved settings)"
+msgstr ""
+
+msgctxt "#30063"
+msgid "View add-on log"
+msgstr ""
+
+msgctxt "#30064"
+msgid "Clear add-on log"
+msgstr ""
