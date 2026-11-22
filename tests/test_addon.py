@@ -1,53 +1,6 @@
-import sys, os, types, json, tempfile, time, threading, shutil
+import json, os, subprocess, sys, tempfile, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "plugin.image.photoprism")
-sys.path.insert(0, ROOT)
-PROFILE = tempfile.mkdtemp()
-SETTINGS = {"server_url": "", "auth_mode": "0", "username": "admin", "password": "pw", "token": "",
-            "page_size": "2", "thumb_size": "tile_500", "full_size": "fit_1920", "prefetch": "true",
-            "prefetch_threads": "2", "cache_enabled": "true", "cache_path": "", "cache_max_mb": "500",
-            "cache_ttl_hours": "24", "timeout": "3", "verify_ssl": "true", "video_format": "avc"}
-LOG = {"items": [], "notes": [], "end": [], "resolved": [], "builtin": []}
-def mod(n): m = types.ModuleType(n); sys.modules[n] = m; return m
-x = mod("xbmc"); x.LOGINFO, x.LOGWARNING, x.LOGERROR = 1, 2, 3
-x.log = lambda m, l=1: None
-x.executebuiltin = lambda c: LOG["builtin"].append(c)
-class KB:
-    def __init__(s, *a): pass
-    def doModal(s): pass
-    def isConfirmed(s): return True
-    def getText(s): return "label:cat"
-x.Keyboard = KB
-a = mod("xbmcaddon")
-class Addon:
-    def getSetting(s, k): return SETTINGS.get(k, "")
-    def getAddonInfo(s, k): return {"id": "plugin.image.photoprism", "name": "PhotoPrism", "profile": PROFILE}.get(k, "")
-a.Addon = Addon
-g = mod("xbmcgui"); g.NOTIFICATION_ERROR, g.NOTIFICATION_INFO = "e", "i"
-class LI:
-    def __init__(s, label="", path=""): s.label, s.path, s.art, s.props = label, path, {}, {}
-    def setArt(s, d): s.art = d
-    def setInfo(s, *a): pass
-    def setProperty(s, k, v): s.props[k] = v
-    def setMimeType(s, m): pass
-    def setContentLookup(s, b): pass
-    def addContextMenuItems(s, i): pass
-    def getVideoInfoTag(s): return Tag()
-    def getPictureInfoTag(s): return Tag()
-class Tag:
-    def __getattr__(s, n):
-        assert n in ("setTitle", "setPlot", "setDuration", "setMediaType", "setDateTimeTaken"), n
-        return lambda *a: None
-g.ListItem = LI
-class D:
-    def notification(s, h, m, *a): LOG["notes"].append(m)
-g.Dialog = D
-p = mod("xbmcplugin")
-p.addDirectoryItem = lambda h, u, li, f=False: LOG["items"].append((li.label, u, li.art.get("thumb"), f))
-p.endOfDirectory = lambda h, succeeded=True, **k: LOG["end"].append(succeeded)
-p.setContent = lambda *a: None
-p.setResolvedUrl = lambda h, ok, li: LOG["resolved"].append((ok, li.path))
-v = mod("xbmcvfs"); v.translatePath = lambda p: p
+from kodi_mocks import PROFILE, SETTINGS, LOG
 
 # ---- fake PhotoPrism ----
 PHOTOS = [{"UID": "p%d" % i, "Hash": "h%d" % i, "Title": "Photo %d" % i,
@@ -120,7 +73,6 @@ n = HITS["photos"]; run("?action=photos"); check(HITS["photos"] == n, "metadata 
 run("?action=play&hash=h1"); check(LOG["resolved"] == [(True, SETTINGS["server_url"] + "/api/v1/videos/h1/prev/avc")], "video endpoint resolved")
 run("?action=search"); check([i[0] for i in LOG["items"]][-1] == "Photo 0" and len(LOG["items"]) == 2, "search via keyboard (label:cat)")
 run("?action=slideshow&album=a1"); check("SlideShow(" in LOG["builtin"][0] and "slideshow=1" in LOG["builtin"][0], "slideshow builtin")
-import re
 run("?" + LOG["builtin"][0][len("SlideShow(plugin://plugin.image.photoprism/?"):-1] if False else "?action=photos&q=type%3Aimage&slideshow=1")
 check(len(LOG["items"]) == 4 and all("Next" not in i[0] and "Slideshow" not in i[0] for i in LOG["items"]), "flat slideshow list, images only")
 MODE["expire"] = True; run("?action=albums&type=moment")
@@ -156,4 +108,23 @@ c.set_json("m", {"a": 1}); pth = c._path("meta", "m", ".json"); os.utime(pth, (t
 check(c.get_json("m") is None and not os.path.exists(pth), "TTL expiry")
 check(c.clear() > 0 and c.size() == 0, "clear cache")
 SETTINGS["cache_path"] = ""; run("?action=clear_cache"); check(any("Cache cleared" in n for n in LOG["notes"]), "clear-cache action")
+# ---- regression tests (1.0.1) ----
+# 1) auth fingerprint must not depend on per-process hash randomisation
+snippet = ("import sys; sys.path.insert(0, %r); import kodi_mocks; kodi_mocks.SETTINGS.update(password='pw');"
+           "from resources.lib import plugin; print(plugin.Plugin(['plugin://x/', '1', ''])._auth_fingerprint())"
+           % os.path.dirname(os.path.abspath(__file__)))
+fps = [subprocess.run([sys.executable, "-c", snippet], capture_output=True, text=True,
+                      env=dict(os.environ, PYTHONHASHSEED=seed)).stdout.strip() for seed in ("1", "2")]
+check(fps[0] and fps[0] == fps[1] and "pw" not in fps[0], "auth fingerprint stable across processes, no plaintext secret")
+# 2) session file is private
+SETTINGS.update(server_url="http://127.0.0.1:%d" % srv.server_port, auth_mode="0", username="admin", password="pw", token="", cache_path="")
+sess = os.path.join(PROFILE, "session.json")
+if os.path.exists(sess): os.remove(sess)
+run("?action=albums&type=album")
+check(os.path.exists(sess) and (os.stat(sess).st_mode & 0o777) == 0o600, "session.json created with mode 0600")
+# 3) eviction must only drop *.tmp files by name, not everything under a path containing '.tmp'
+d = os.path.join(tempfile.mkdtemp(), ".tmpcache"); c = cache.DiskCache(d, max_mb=50, ttl_hours=24)
+c.put_image("keep", b"x" * 100); stale = os.path.join(d, "img", "abc.jpg.tmp123"); open(stale, "wb").write(b"y")
+c.evict()
+check(c.image_path("keep") is not None and not os.path.exists(stale), "evict keeps live files under a '.tmp' path, drops leftover tmp files")
 srv.shutdown(); print("ALL %d CHECKS PASSED" % ok)

@@ -28,7 +28,7 @@ class PhotoPrism(object):
 
     # ---- low level ----
     def _headers(self):
-        h = {"Accept": "application/json", "User-Agent": "Kodi-PhotoPrism/1.0"}
+        h = {"Accept": "application/json", "User-Agent": "Kodi-PhotoPrism/1.0.1"}
         if self.token:
             h["Authorization"] = "Bearer " + self.token
             h["X-Auth-Token"] = self.token

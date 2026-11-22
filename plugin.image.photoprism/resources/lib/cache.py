@@ -157,7 +157,7 @@ class DiskCache(object):
             now = time.time()
             live, total = [], 0
             for p, st in self._entries():
-                if now - st.st_mtime > self.ttl or ".tmp" in p:
+                if now - st.st_mtime > self.ttl or ".tmp" in os.path.basename(p):
                     try:
                         os.remove(p); removed += 1
                     except OSError:

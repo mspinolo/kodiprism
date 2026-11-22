@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 """Kodi plugin routing and UI for PhotoPrism."""
+import hashlib
 import json
 import os
 import threading
 
+from typing import List, Optional, Tuple
 from urllib.parse import urlencode, parse_qsl
 
 import xbmc
@@ -65,15 +67,18 @@ class Plugin(object):
             notify("Cache folder not writable - using add-on profile")
         self.cache = DiskCache(root, s_int("cache_max_mb", 500), s_int("cache_ttl_hours", 24),
                                s_bool("cache_enabled") if s("cache_enabled") else True)
-        self.api = None
+        self.api: Optional[PhotoPrism] = None
+        self._prefetch: List[Tuple[str, str]] = []
 
     # ---------- helpers ----------
     def url(self, **kw):
         return self.base + "?" + urlencode(kw)
 
     def _auth_fingerprint(self):
-        return "|".join([s("server_url"), s("auth_mode"), s("username"),
-                         str(hash(s("password") + s("token")))])
+        # Must be stable across processes: the builtin hash() of str is salted per
+        # interpreter start, which would invalidate session.json on every Kodi restart.
+        secret = hashlib.sha256((s("password") + "\0" + s("token")).encode("utf-8")).hexdigest()
+        return "|".join([s("server_url"), s("auth_mode"), s("username"), secret])
 
     def connect(self):
         if self.api:
@@ -106,9 +111,11 @@ class Plugin(object):
         st = api.state()
         st["fp"] = fp
         try:
-            with open(state_file, "w") as fh:
+            # Create with 0600 from the start (no window where the file is world-readable).
+            fd = os.open(state_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "w") as fh:
                 json.dump(st, fh)
-            os.chmod(state_file, 0o600)
+            os.chmod(state_file, 0o600)  # also tighten a pre-existing file
         except OSError:
             pass
         self.api = api
@@ -138,8 +145,9 @@ class Plugin(object):
         return remote
 
     def run_prefetch(self):
-        if not (self._prefetch and self.cache.enabled and
-                (s_bool("prefetch") if s("prefetch") else True)):
+        api = self.api
+        if api is None or not (self._prefetch and self.cache.enabled and
+                               (s_bool("prefetch") if s("prefetch") else True)):
             return
         jobs = list(self._prefetch)
         lock = threading.Lock()
@@ -150,7 +158,7 @@ class Plugin(object):
                     if not jobs:
                         return
                     key, url = jobs.pop()
-                data = self.api.fetch_bytes(url)
+                data = api.fetch_bytes(url)
                 if data:
                     self.cache.put_image(key, data)
 
@@ -217,7 +225,8 @@ class Plugin(object):
         offset = int(self.params.get("offset", 0))
         flat = self.params.get("slideshow") == "1"
         if flat:  # slideshow: flat list of up to 1000 images, no navigation items
-            items, batch, pos = [], 200, 0
+            items: list = []
+            batch, pos = 200, 0
             while len(items) < 1000:
                 res = self._photo_query(pos, q, album, batch)
                 items += res["items"]
@@ -270,9 +279,10 @@ class Plugin(object):
         xbmcplugin.endOfDirectory(self.handle, cacheToDisc=False)
 
     def image_url(self, h):
+        api = self.connect()
         if self.full_size == "original":
-            return self.api.download_url(h)
-        return self.api.thumb_url(h, self.full_size)
+            return api.download_url(h)
+        return api.thumb_url(h, self.full_size)
 
     def search(self):
         q = self.params.get("q")
