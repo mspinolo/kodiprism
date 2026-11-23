@@ -2,6 +2,24 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versions follow `addon.xml`.
 
+## [1.2.0] - 2026-11-23
+### Added
+- **Italian translation** (closes #3). Every menu label, prompt and notification now goes through
+  `strings.po`; Kodi falls back to English for other languages. Technical messages (connection errors, the
+  test-connection and log viewers) stay in English.
+- **Pan and zoom off during slideshows** (new setting, on by default). Kodi only has a global switch
+  (`slideshow.displayeffects`), so a small background service turns it off when a KodiPrism slideshow starts
+  and restores the previous value when the slideshow window closes (also after a crash or when Kodi quits).
+  *Troubleshooting > Check slideshow settings* shows the service state and the relevant Kodi settings.
+- Main menu: **Recently added** (server order `added`, never cached), **On this day** (`month:M day:D`) and
+  **Random photos** (one random draw, *Shuffle again* entry).
+- **Slideshow from here** (context menu on a picture).
+- Photos show their date as second label and report their resolution to Kodi.
+- **Hide empty albums** setting (on by default).
+- **First-run guide**: when the server address was never set, offers once to open the settings.
+### Changed
+- Random lists are never cached; lists marked `fresh` (Recently added) are never cached either.
+
 ## [1.1.0] - 2026-11-22
 ### Added
 - **Search albums** (main menu and top of the Albums list): every word must appear in the title or place;

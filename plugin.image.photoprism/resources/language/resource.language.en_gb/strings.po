@@ -135,3 +135,143 @@ msgstr ""
 msgctxt "#30069"
 msgid "Maximum images per slideshow"
 msgstr ""
+
+msgctxt "#30100"
+msgid "Albums"
+msgstr ""
+
+msgctxt "#30101"
+msgid "Folders"
+msgstr ""
+
+msgctxt "#30102"
+msgid "Moments"
+msgstr ""
+
+msgctxt "#30103"
+msgid "Calendar"
+msgstr ""
+
+msgctxt "#30104"
+msgid "All photos"
+msgstr ""
+
+msgctxt "#30105"
+msgid "Videos"
+msgstr ""
+
+msgctxt "#30106"
+msgid "Favorites"
+msgstr ""
+
+msgctxt "#30107"
+msgid "Search albums..."
+msgstr ""
+
+msgctxt "#30108"
+msgid "Search photos..."
+msgstr ""
+
+msgctxt "#30109"
+msgid "Slideshow: all photos"
+msgstr ""
+
+msgctxt "#30111"
+msgid "Recently added"
+msgstr ""
+
+msgctxt "#30112"
+msgid "Random photos"
+msgstr ""
+
+msgctxt "#30113"
+msgid "On this day"
+msgstr ""
+
+msgctxt "#30114"
+msgid "Next page >>"
+msgstr ""
+
+msgctxt "#30115"
+msgid "Slideshow"
+msgstr ""
+
+msgctxt "#30116"
+msgid "Slideshow from here"
+msgstr ""
+
+msgctxt "#30117"
+msgid "Shuffle again"
+msgstr ""
+
+msgctxt "#30118"
+msgid "Search albums (title or place)"
+msgstr ""
+
+msgctxt "#30119"
+msgid "Search photos (e.g. label:cat year:2023)"
+msgstr ""
+
+msgctxt "#30120"
+msgid "No albums found"
+msgstr ""
+
+msgctxt "#30121"
+msgid "No albums"
+msgstr ""
+
+msgctxt "#30122"
+msgid "No items found"
+msgstr ""
+
+msgctxt "#30123"
+msgid "Reading album dates..."
+msgstr ""
+
+msgctxt "#30124"
+msgid "Slideshow order"
+msgstr ""
+
+msgctxt "#30125"
+msgid "Random"
+msgstr ""
+
+msgctxt "#30126"
+msgid "Cache cleared (%d files)"
+msgstr ""
+
+msgctxt "#30127"
+msgid "Add-on log cleared"
+msgstr ""
+
+msgctxt "#30128"
+msgid "Cache folder not writable - using add-on profile"
+msgstr ""
+
+msgctxt "#30129"
+msgid "Unexpected error - see Settings > Troubleshooting > View add-on log"
+msgstr ""
+
+msgctxt "#30130"
+msgid "KodiPrism is not configured yet. Open the settings now?"
+msgstr ""
+
+msgctxt "#30131"
+msgid "Open settings"
+msgstr ""
+
+msgctxt "#30132"
+msgid "Later"
+msgstr ""
+
+msgctxt "#30134"
+msgid "Disable pan and zoom during slideshows"
+msgstr ""
+
+msgctxt "#30135"
+msgid "Hide empty albums"
+msgstr ""
+
+msgctxt "#30136"
+msgid "Check slideshow settings"
+msgstr ""

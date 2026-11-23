@@ -9,7 +9,7 @@ Download `plugin.image.photoprism-<version>.zip` from the [Releases](https://git
 
 ## Settings
 - **Server:** URL (default `http://localhost:2342`). Login method is either **username + password** (POST `/api/v1/session`) or an **app password / access token** (Bearer). Nothing secret is stored in the code. The session token is saved to `<profile>/session.json` (mode 0600). A new login happens automatically when the settings change or the token expires.
-- **Browsing:** items per page, **sort order** (newest first, oldest first, name), **maximum images per slideshow** (default 2000), thumbnail size (`tile_224` to `fit_1280`), slideshow image size (up to `original` via `/api/v1/dl`), thumbnail prefetching (number of threads) and video format (`avc`, `hevc`, `vp9`, `av01`).
+- **Browsing:** items per page, **hide empty albums**, **disable pan and zoom during slideshows**, **sort order** (newest first, oldest first, name), **maximum images per slideshow** (default 2000), thumbnail size (`tile_224` to `fit_1280`), slideshow image size (up to `original` via `/api/v1/dl`), thumbnail prefetching (number of threads) and video format (`avc`, `hevc`, `vp9`, `av01`).
 - **Cache:** an on/off switch and a folder browser for any folder or disk. A `photoprism_cache/` folder is created there. If the folder doesn't exist or can't be written to, the add-on uses the add-on profile folder instead and shows a notification. You can also set the max size in MB (default 500), the lifetime in hours (default 24) and use a **Clear cache** button. Metadata (JSON) and thumbnails are stored on disk. Old entries are removed by TTL, then least-recently-used entries are removed until the cache is under the size limit.
 
 ## Usage
@@ -23,8 +23,13 @@ Download `plugin.image.photoprism-<version>.zip` from the [Releases](https://git
 - **Newest first** is the default everywhere. Manual PhotoPrism albums have no date of their own, so an album's date is the date of the **newest photo it contains**, shown next to the album. It is read with one small request per album the first time, then kept in the cache and only re-read for albums whose `UpdatedAt` or photo count changed (about 0.25 KB per album; 100 albums take a second or two the first time). Empty albums and albums whose lookup failed go last. Folders, moments and calendar months have their own dates and are sorted by the server.
 - The sort order setting applies to albums (by last-photo date), photos and the other lists.
 
+## Main menu
+Albums, Folders, Moments, Calendar, All photos, **Recently added**, **On this day** (photos taken on today's date in any year), **Random photos** (with *Shuffle again*), Videos, Favorites, search albums, search photos (PhotoPrism query syntax), slideshow and clear cache. The interface is available in English and Italian (it follows Kodi's language).
+
 ## Slideshow
-Starting a slideshow (main menu, album context menu or the *Slideshow* entry of a photo list) asks for the order: **newest first, oldest first or random**. The limit is 2000 images by default (setting). Random draws from the whole library or album, not only the newest photos. The ordered modes explicitly disable Kodi's own *Randomise* option so your choice is respected.
+Starting a slideshow (main menu, album context menu or the *Slideshow* entry of a photo list) asks for the order: **newest first, oldest first or random**. The limit is 2000 images by default (setting). Random draws from the whole library or album, not only the newest photos. The ordered modes explicitly disable Kodi's own *Randomise* option so your choice is respected. On a picture, the context menu offers **Slideshow from here**.
+
+**Pan and zoom.** Kodi has no per-slideshow switch for its pan-and-zoom effect, only the global *Settings > Player > Pictures* option. With *Disable pan and zoom during slideshows* on (default), a small background service of this add-on turns that option off when a KodiPrism slideshow starts and puts the previous value back when the slideshow window closes (it also recovers if Kodi quit or crashed in between). If the option seems to have no effect, restart Kodi once after installing so the service starts, and use *Troubleshooting > Check slideshow settings* to see whether it is running.
 
 ## Troubleshooting
 **Server address.** Write it as Kodi must reach it, including the protocol and, unless it is the standard one

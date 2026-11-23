@@ -11,7 +11,7 @@ Owner: Michele (`mspinolo`). Target setup: LibreELEC (Omega) 12.2.1 / Kodi 21 ag
 The first version was generated entirely by Claude Opus; the owner made the first commit by hand (the LICENSE).
 
 ## Current status (keep this section honest and up to date)
-- Version **1.1.0** (see `CHANGELOG.md`). License **GPL-3.0** (`LICENSE`, mirrored in `addon.xml`).
+- Version **1.2.0** (see `CHANGELOG.md`). License **GPL-3.0** (`LICENSE`, mirrored in `addon.xml`).
 - Verified in automation: unit/integration tests with mocked `xbmc*` modules against a fake PhotoPrism
   server (`tests/test_addon.py`), offline static checks (`tests/test_static.py`), pyflakes, mypy+Kodistubs.
 - Reported by the previous agent but **not re-verified** by later sessions: `tests/test_live.py` against a real
@@ -32,7 +32,7 @@ assets/                    icon.svg, fanart.svg — sources of the generated art
 docs/knowledge.md          API facts, Kodi patterns, design decisions, testing recipes, known bugs
 .github/workflows/         ci.yml (every push/PR) · release.yml (tag vX.Y.Z -> GitHub Release with the zip)
 ```
-Code is small: `api.py` REST client (URL normalisation, error messages), `catalog.py` album search/sort/last-photo dates, `cache.py` TTL+LRU disk cache, `logger.py` logging with secret masking, `plugin.py` routing/UI.
+Code is small: `api.py` REST client (URL normalisation, error messages), `catalog.py` album search/sort/last-photo dates, `slideshow_fx.py` + `service.py` pan/zoom guard, `cache.py` TTL+LRU disk cache, `logger.py` logging with secret masking, `plugin.py` routing/UI.
 
 ## Commands
 ```
@@ -51,6 +51,7 @@ Live test: `PP_URL=http://host:2342 PP_PASS=... PP_APP=<app password> python3 te
   `tests/test_static.py` fails if a label id is missing or a setting read by the code is undeclared.
 - Bump `version` in `addon.xml` **and** add a `## [x.y.z]` entry to `CHANGELOG.md` together (also enforced).
 - Never commit secrets (passwords, app passwords, tokens). Secrets live only in Kodi settings.
+- UI text: never hard-code English in `plugin.py`; add a key to `STR`, the id to **both** `en_gb` and `it_it` `strings.po` (`tests/test_static.py` enforces parity).
 - Log only through `self.log` (`AddonLog`), never `xbmc.log` directly; register any new secret with `add_secret()`. Tests prove that no secret reaches `debug.log` or `kodi.log`; keep it that way.
 - Generated binaries (`icon.png`, `fanart.jpg`) are committed because the add-on must run from source;
   change the SVG and run `make assets` rather than editing them by hand.
@@ -59,10 +60,13 @@ Live test: `PP_URL=http://host:2342 PP_PASS=... PP_APP=<app password> python3 te
   `[verified]` only if you ran it yourself.
 
 ## Open items / backlog (highest value first)
-1. **Test in the real Kodi** (LibreELEC 12.2.1): install the zip, check settings UI, album/photo browsing,
-   slideshow, video playback, cache folder picker, "Clear cache" button.
-2. **Localisation**: labels in `plugin.py` ("Albums", "Next page >>", notifications...) are hard-coded
-   English. Move them to `strings.po` and add `resource.language.it_it` (owner is Italian).
+1. **Test in the real Kodi** (LibreELEC 12.2.1): connection and browsing are confirmed; still to confirm are
+   album covers (1.0.3), album dates and progress dialog (1.1.0), slideshow order, pan/zoom service, Italian UI,
+   *Slideshow from here*, *On this day* and the other 1.2.0 items, video playback and the cache folder picker.
+   The checklist is in issue #2.
+2. **Listing cache TTL**: photo listings are cached for the cache lifetime (24 h by default), so new photos can
+   take that long to appear in *All photos* or a slideshow (*Recently added* bypasses the cache; albums are
+   always fetched fresh). Consider a separate, short TTL for listings.
 3. Verify the effect of `public=true` in `api.photos()` (could hide private photos; semantics unconfirmed).
 4. HTTP 403 is treated like 401 (invalidates the session and retries once). Distinguish "forbidden" (scope)
    from "unauthenticated".

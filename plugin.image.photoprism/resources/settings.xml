@@ -70,6 +70,12 @@
           <constraints><minimum>100</minimum><step>100</step><maximum>10000</maximum></constraints>
           <control type="slider" format="integer"/>
         </setting>
+        <setting id="hide_empty_albums" type="boolean" label="30135">
+          <level>0</level><default>true</default><control type="toggle"/>
+        </setting>
+        <setting id="disable_pan_zoom" type="boolean" label="30134">
+          <level>0</level><default>true</default><control type="toggle"/>
+        </setting>
         <setting id="thumb_size" type="string" label="30022">
           <level>0</level><default>tile_500</default>
           <constraints><options>
@@ -134,6 +140,11 @@
         </setting>
         <setting id="show_log" type="action" label="30063">
           <level>0</level><data>RunPlugin(plugin://plugin.image.photoprism/?action=show_log)</data>
+          <constraints><allowempty>true</allowempty></constraints>
+          <control type="button" format="action"/>
+        </setting>
+        <setting id="slideshow_settings" type="action" label="30136">
+          <level>0</level><data>RunPlugin(plugin://plugin.image.photoprism/?action=slideshow_settings)</data>
           <constraints><allowempty>true</allowempty></constraints>
           <control type="button" format="action"/>
         </setting>

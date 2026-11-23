@@ -1,0 +1,277 @@
+# Kodi Media Center language file
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: it_IT\n"
+
+msgctxt "#30000"
+msgid "Server"
+msgstr "Server"
+
+msgctxt "#30001"
+msgid "PhotoPrism URL"
+msgstr "URL di PhotoPrism"
+
+msgctxt "#30002"
+msgid "Login method"
+msgstr "Metodo di accesso"
+
+msgctxt "#30003"
+msgid "Username + password"
+msgstr "Nome utente e password"
+
+msgctxt "#30004"
+msgid "App password / access token"
+msgstr "App password / token di accesso"
+
+msgctxt "#30005"
+msgid "Username"
+msgstr "Nome utente"
+
+msgctxt "#30006"
+msgid "Password"
+msgstr "Password"
+
+msgctxt "#30007"
+msgid "App password or access token"
+msgstr "App password o token di accesso"
+
+msgctxt "#30008"
+msgid "Verify TLS certificates"
+msgstr "Verifica i certificati TLS"
+
+msgctxt "#30009"
+msgid "Request timeout (s)"
+msgstr "Timeout delle richieste (s)"
+
+msgctxt "#30020"
+msgid "Browsing"
+msgstr "Navigazione"
+
+msgctxt "#30021"
+msgid "Items per page"
+msgstr "Elementi per pagina"
+
+msgctxt "#30022"
+msgid "Thumbnail size"
+msgstr "Dimensione delle miniature"
+
+msgctxt "#30023"
+msgid "Slideshow / full image size"
+msgstr "Dimensione immagine (slideshow / schermo intero)"
+
+msgctxt "#30024"
+msgid "Prefetch thumbnails"
+msgstr "Precarica le miniature"
+
+msgctxt "#30025"
+msgid "Prefetch threads"
+msgstr "Thread di precaricamento"
+
+msgctxt "#30026"
+msgid "Video format"
+msgstr "Formato video"
+
+msgctxt "#30040"
+msgid "Cache"
+msgstr "Cache"
+
+msgctxt "#30041"
+msgid "Enable disk cache"
+msgstr "Abilita la cache su disco"
+
+msgctxt "#30042"
+msgid "Cache location (empty = add-on profile)"
+msgstr "Posizione della cache (vuoto = profilo dell'add-on)"
+
+msgctxt "#30043"
+msgid "Max cache size (MB)"
+msgstr "Dimensione massima della cache (MB)"
+
+msgctxt "#30044"
+msgid "Cache lifetime (hours)"
+msgstr "Durata della cache (ore)"
+
+msgctxt "#30045"
+msgid "Clear cache"
+msgstr "Svuota la cache"
+
+msgctxt "#30060"
+msgid "Troubleshooting"
+msgstr "Risoluzione problemi"
+
+msgctxt "#30061"
+msgid "Enable debug logging (records every request)"
+msgstr "Abilita il log di debug (registra ogni richiesta)"
+
+msgctxt "#30062"
+msgid "Test connection (uses saved settings)"
+msgstr "Prova la connessione (usa le impostazioni salvate)"
+
+msgctxt "#30063"
+msgid "View add-on log"
+msgstr "Visualizza il log dell'add-on"
+
+msgctxt "#30064"
+msgid "Clear add-on log"
+msgstr "Cancella il log dell'add-on"
+
+msgctxt "#30065"
+msgid "Sort order (albums by date of last photo)"
+msgstr "Ordinamento (album per data dell'ultima foto)"
+
+msgctxt "#30066"
+msgid "Newest first"
+msgstr "Prima le più recenti"
+
+msgctxt "#30067"
+msgid "Oldest first"
+msgstr "Prima le più vecchie"
+
+msgctxt "#30068"
+msgid "Name (A-Z)"
+msgstr "Nome (A-Z)"
+
+msgctxt "#30069"
+msgid "Maximum images per slideshow"
+msgstr "Numero massimo di immagini per slideshow"
+
+msgctxt "#30100"
+msgid "Albums"
+msgstr "Album"
+
+msgctxt "#30101"
+msgid "Folders"
+msgstr "Cartelle"
+
+msgctxt "#30102"
+msgid "Moments"
+msgstr "Momenti"
+
+msgctxt "#30103"
+msgid "Calendar"
+msgstr "Calendario"
+
+msgctxt "#30104"
+msgid "All photos"
+msgstr "Tutte le foto"
+
+msgctxt "#30105"
+msgid "Videos"
+msgstr "Video"
+
+msgctxt "#30106"
+msgid "Favorites"
+msgstr "Preferiti"
+
+msgctxt "#30107"
+msgid "Search albums..."
+msgstr "Cerca album..."
+
+msgctxt "#30108"
+msgid "Search photos..."
+msgstr "Cerca foto..."
+
+msgctxt "#30109"
+msgid "Slideshow: all photos"
+msgstr "Slideshow: tutte le foto"
+
+msgctxt "#30111"
+msgid "Recently added"
+msgstr "Aggiunte di recente"
+
+msgctxt "#30112"
+msgid "Random photos"
+msgstr "Foto casuali"
+
+msgctxt "#30113"
+msgid "On this day"
+msgstr "In questo giorno"
+
+msgctxt "#30114"
+msgid "Next page >>"
+msgstr "Pagina successiva >>"
+
+msgctxt "#30115"
+msgid "Slideshow"
+msgstr "Slideshow"
+
+msgctxt "#30116"
+msgid "Slideshow from here"
+msgstr "Slideshow da qui"
+
+msgctxt "#30117"
+msgid "Shuffle again"
+msgstr "Mescola di nuovo"
+
+msgctxt "#30118"
+msgid "Search albums (title or place)"
+msgstr "Cerca album (titolo o luogo)"
+
+msgctxt "#30119"
+msgid "Search photos (e.g. label:cat year:2023)"
+msgstr "Cerca foto (es. label:cat year:2023)"
+
+msgctxt "#30120"
+msgid "No albums found"
+msgstr "Nessun album trovato"
+
+msgctxt "#30121"
+msgid "No albums"
+msgstr "Nessun album"
+
+msgctxt "#30122"
+msgid "No items found"
+msgstr "Nessun elemento trovato"
+
+msgctxt "#30123"
+msgid "Reading album dates..."
+msgstr "Lettura delle date degli album..."
+
+msgctxt "#30124"
+msgid "Slideshow order"
+msgstr "Ordine dello slideshow"
+
+msgctxt "#30125"
+msgid "Random"
+msgstr "Casuale"
+
+msgctxt "#30126"
+msgid "Cache cleared (%d files)"
+msgstr "Cache svuotata (%d file)"
+
+msgctxt "#30127"
+msgid "Add-on log cleared"
+msgstr "Log dell'add-on cancellato"
+
+msgctxt "#30128"
+msgid "Cache folder not writable - using add-on profile"
+msgstr "Cartella della cache non scrivibile: uso il profilo dell'add-on"
+
+msgctxt "#30129"
+msgid "Unexpected error - see Settings > Troubleshooting > View add-on log"
+msgstr "Errore imprevisto: vedi Impostazioni > Risoluzione problemi > Visualizza il log dell'add-on"
+
+msgctxt "#30130"
+msgid "KodiPrism is not configured yet. Open the settings now?"
+msgstr "KodiPrism non è ancora configurato. Aprire le impostazioni ora?"
+
+msgctxt "#30131"
+msgid "Open settings"
+msgstr "Apri le impostazioni"
+
+msgctxt "#30132"
+msgid "Later"
+msgstr "Più tardi"
+
+msgctxt "#30134"
+msgid "Disable pan and zoom during slideshows"
+msgstr "Disattiva zoom e panning durante gli slideshow"
+
+msgctxt "#30135"
+msgid "Hide empty albums"
+msgstr "Nascondi gli album vuoti"
+
+msgctxt "#30136"
+msgid "Check slideshow settings"
+msgstr "Controlla le impostazioni dello slideshow"

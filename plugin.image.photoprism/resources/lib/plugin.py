@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import threading
+import time
 
 from typing import List, Optional, Tuple
 from urllib.parse import urlencode, parse_qsl
@@ -14,7 +15,7 @@ import xbmcgui
 import xbmcplugin
 import xbmcvfs
 
-from resources.lib import catalog
+from resources.lib import catalog, slideshow_fx
 from resources.lib.api import PhotoPrism, ApiError, AuthError, normalize_base_url
 from resources.lib.cache import DiskCache, resolve_dir
 from resources.lib.logger import AddonLog
@@ -29,6 +30,20 @@ PROFILE = xbmcvfs.translatePath(ADDON.getAddonInfo("profile"))
 
 SLIDESHOW_ORDERS = ("newest", "oldest", "random")
 ORDERS = SLIDESHOW_ORDERS + ("name", "added")
+
+
+# ids in resources/language/*/strings.po (English is the source text; Italian is translated)
+STR = {"albums": 30100, "folders": 30101, "moments": 30102, "calendar": 30103, "all_photos": 30104, "videos": 30105,
+       "favorites": 30106, "search_albums": 30107, "search_photos": 30108, "slideshow_all": 30109, "clear_cache": 30045,
+       "recent": 30111, "random_photos": 30112, "on_this_day": 30113, "next": 30114, "slideshow": 30115,
+       "slideshow_here": 30116, "shuffle": 30117, "kb_albums": 30118, "kb_photos": 30119, "no_albums_found": 30120,
+       "no_albums": 30121, "no_items": 30122, "reading_dates": 30123, "slideshow_order": 30124, "random": 30125,
+       "cache_cleared": 30126, "log_cleared": 30127, "cache_unwritable": 30128, "unexpected": 30129,
+       "first_run": 30130, "open_settings": 30131, "later": 30132, "newest": 30066, "oldest": 30067}
+
+
+def L(key):
+    return ADDON.getLocalizedString(STR[key])
 
 
 def notify(msg, error=True):
@@ -70,7 +85,7 @@ class Plugin(object):
         root, fell_back = resolve_dir(user_dir, PROFILE)
         if fell_back:
             self.log.warning("Cache path %r not usable, falling back to %s" % (user_dir, root))
-            notify("Cache folder not writable - using add-on profile")
+            notify(L("cache_unwritable"))
         self.cache = DiskCache(root, s_int("cache_max_mb", 500), s_int("cache_ttl_hours", 24),
                                s_bool("cache_enabled") if s("cache_enabled") else True)
         self.api: Optional[PhotoPrism] = None
@@ -197,18 +212,41 @@ class Plugin(object):
         xbmcplugin.addDirectoryItem(self.handle, url, li, folder)
 
     # ---------- routes ----------
+    def _first_run_prompt(self):
+        """Once, when the server address was never set: offer to open the settings. True = handled."""
+        marker = os.path.join(PROFILE, "first_run_done")
+        if os.path.exists(marker) or s("server_url").strip() not in ("", "http://localhost:2342"):
+            return False
+        try:
+            os.makedirs(PROFILE, exist_ok=True)
+            open(marker, "w").close()
+        except OSError:
+            pass
+        if xbmcgui.Dialog().yesno(NAME, L("first_run"), nolabel=L("later"), yeslabel=L("open_settings")):
+            ADDON.openSettings()
+            xbmcplugin.endOfDirectory(self.handle, succeeded=False)
+            return True
+        return False
+
     def root(self):
-        self.add_dir("Albums", self.url(action="albums", type="album"))
-        self.add_dir("Folders", self.url(action="albums", type="folder"))
-        self.add_dir("Moments", self.url(action="albums", type="moment"))
-        self.add_dir("Calendar", self.url(action="albums", type="month"))
-        self.add_dir("All photos", self.url(action="photos"))
-        self.add_dir("Videos", self.url(action="photos", q="type:video"))
-        self.add_dir("Favorites", self.url(action="photos", q="favorite:true"))
-        self.add_dir("Search albums...", self.url(action="search_albums"))
-        self.add_dir("Search photos...", self.url(action="search"))
-        self.add_dir("Slideshow: all photos", self.url(action="slideshow", q="type:image"), folder=False)
-        self.add_dir("Clear cache", self.url(action="clear_cache"), folder=False)
+        if self._first_run_prompt():
+            return
+        today = time.localtime()
+        self.add_dir(L("albums"), self.url(action="albums", type="album"))
+        self.add_dir(L("folders"), self.url(action="albums", type="folder"))
+        self.add_dir(L("moments"), self.url(action="albums", type="moment"))
+        self.add_dir(L("calendar"), self.url(action="albums", type="month"))
+        self.add_dir(L("all_photos"), self.url(action="photos"))
+        self.add_dir(L("recent"), self.url(action="photos", order="added", fresh="1", title=L("recent")))
+        self.add_dir(L("on_this_day"), self.url(action="photos", q="month:%d day:%d" % (today.tm_mon, today.tm_mday),
+                                                 title=L("on_this_day")))
+        self.add_dir(L("random_photos"), self.url(action="photos", q="type:image", order="random", title=L("random_photos")))
+        self.add_dir(L("videos"), self.url(action="photos", q="type:video"))
+        self.add_dir(L("favorites"), self.url(action="photos", q="favorite:true"))
+        self.add_dir(L("search_albums"), self.url(action="search_albums"))
+        self.add_dir(L("search_photos"), self.url(action="search"))
+        self.add_dir(L("slideshow_all"), self.url(action="slideshow", q="type:image"), folder=False)
+        self.add_dir(L("clear_cache"), self.url(action="clear_cache"), folder=False)
         xbmcplugin.endOfDirectory(self.handle)
 
     def _progress_bg(self):
@@ -219,7 +257,7 @@ class Plugin(object):
             dlg = state["dlg"]
             if dlg is None:
                 dlg = state["dlg"] = xbmcgui.DialogProgressBG()
-                dlg.create(NAME, "Reading album dates...")
+                dlg.create(NAME, L("reading_dates"))
             dlg.update(int(100.0 * done / max(total, 1)), message="%d / %d" % (done, total))
 
         def close():
@@ -242,7 +280,7 @@ class Plugin(object):
         if date:
             li.setLabel2(catalog.day(date))
         li.setArt({"thumb": art, "icon": art, "fanart": FANART})
-        li.addContextMenuItems([("Slideshow", "RunPlugin(%s)" % self.url(action="slideshow", album=uid))])
+        li.addContextMenuItems([(L("slideshow"), "RunPlugin(%s)" % self.url(action="slideshow", album=uid))])
         xbmcplugin.addDirectoryItem(self.handle, self.url(action="photos", album=uid, title=title), li, True)
 
     def albums(self):
@@ -260,13 +298,15 @@ class Plugin(object):
         for a in items[:self.page_size]:
             self._add_album(api, a)
         if more:
-            self.add_dir("[B]Next page >>[/B]", self.url(action="albums", type=atype, offset=offset + rows))
+            self.add_dir("[B]%s[/B]" % L("next"), self.url(action="albums", type=atype, offset=offset + rows))
         xbmcplugin.endOfDirectory(self.handle, cacheToDisc=False)
 
     def _album_catalogue(self, api, offset):
         """Albums: loaded completely, searched/sorted/paged locally (see catalog.py)."""
         q = self.params.get("q", "").strip()
         albums = catalog.load_all(api, "album")
+        if s_bool("hide_empty_albums") if s("hide_empty_albums") else True:
+            albums = [a for a in albums if a.get("PhotoCount") != 0]
         dates = {}
         if self.sort != "name":
             update, close = self._progress_bg()
@@ -281,20 +321,20 @@ class Plugin(object):
         if q:
             xbmcplugin.setPluginCategory(self.handle, "Search: %s" % q)
         elif offset == 0:
-            self.add_dir("Search albums...", self.url(action="search_albums"))
+            self.add_dir(L("search_albums"), self.url(action="search_albums"))
         for a in page:
             self._add_album(api, a, dates.get(a["UID"], ""))
         if offset + self.page_size < len(ordered):
             nxt = {"action": "albums", "type": "album", "offset": offset + self.page_size}
             if q:
                 nxt["q"] = q
-            self.add_dir("[B]Next page >>[/B]", self.url(**nxt))
+            self.add_dir("[B]%s[/B]" % L("next"), self.url(**nxt))
         if not ordered:
-            notify("No albums found" if q else "No albums", error=False)
+            notify(L("no_albums_found") if q else L("no_albums"), error=False)
         xbmcplugin.endOfDirectory(self.handle, cacheToDisc=False)
 
     def search_albums(self):
-        kb = xbmc.Keyboard("", "Search albums (title or place)")
+        kb = xbmc.Keyboard("", L("kb_albums"))
         kb.doModal()
         if not kb.isConfirmed() or not kb.getText().strip():
             xbmcplugin.endOfDirectory(self.handle, succeeded=False)
@@ -305,7 +345,7 @@ class Plugin(object):
     def _photo_query(self, offset, q, album, count, order=None):
         api = self.connect()
         order = order or self.sort
-        if order == "random":  # every call must give a new draw: never cached
+        if order == "random" or self.params.get("fresh") == "1":  # new draw / always-current list: never cached
             return api.photos(count, offset, q=q, album=album, order=order)
         key = "photos|%s|%s|%s|%s|%d|%d" % (api.base, q, album, order, offset, count)
         return self.cached_call(key, lambda: api.photos(count, offset, q=q, album=album, order=order))
@@ -339,10 +379,12 @@ class Plugin(object):
         else:
             res = self._photo_query(offset, q, album, self.page_size, order)
             items, rows = res["items"], res["rows"]
-            more = rows >= self.page_size and bool(items)
+            more = rows >= self.page_size and bool(items) and order != "random"  # random draws cannot be paged
         xbmcplugin.setContent(self.handle, "images")
+        if self.params.get("title"):
+            xbmcplugin.setPluginCategory(self.handle, self.params["title"])
         if offset == 0 and items and not flat:
-            self.add_dir("[I]> Slideshow[/I]", self.url(action="slideshow", q=q, album=album), folder=False)
+            self.add_dir("[I]> %s[/I]" % L("slideshow"), self.url(action="slideshow", q=q, album=album), folder=False)
         for p in items:
             h = p.get("Hash")
             if not h:
@@ -367,17 +409,29 @@ class Plugin(object):
                 url = self.image_url(h)
                 taken = p.get("TakenAt") or ""
                 if taken:
+                    li.setLabel2(catalog.day(taken))
                     try:
                         li.getPictureInfoTag().setDateTimeTaken(taken.replace("Z", ""))
                     except (AttributeError, RuntimeError):
                         pass
+                if p.get("Width") and p.get("Height"):
+                    try:
+                        li.getPictureInfoTag().setResolution(int(p["Width"]), int(p["Height"]))
+                    except (AttributeError, RuntimeError, ValueError):
+                        pass
+                li.addContextMenuItems([(L("slideshow_here"), "RunPlugin(%s)" % self.url(
+                    action="slideshow", q=q, album=album, begin=h))])
                 li.setMimeType("image/jpeg")
                 xbmcplugin.addDirectoryItem(self.handle, url, li, False)
         if more:
             nxt = dict(self.params, action="photos", offset=offset + rows)
-            self.add_dir("[B]Next page >>[/B]", self.url(**nxt))
+            self.add_dir("[B]%s[/B]" % L("next"), self.url(**nxt))
+        if order == "random" and items and not flat:
+            again = dict(self.params, action="photos", order="random", r=int(time.time()))
+            again.pop("offset", None)
+            self.add_dir("[B]%s[/B]" % L("shuffle"), self.url(**again))
         if not items:
-            notify("No items found", error=False)
+            notify(L("no_items"), error=False)
         xbmcplugin.endOfDirectory(self.handle, cacheToDisc=False)
 
     def image_url(self, h):
@@ -389,7 +443,7 @@ class Plugin(object):
     def search(self):
         q = self.params.get("q")
         if not q:
-            kb = xbmc.Keyboard("", "PhotoPrism search (e.g. label:cat year:2023)")
+            kb = xbmc.Keyboard("", L("kb_photos"))
             kb.doModal()
             if not kb.isConfirmed() or not kb.getText().strip():
                 xbmcplugin.endOfDirectory(self.handle, succeeded=False)
@@ -410,7 +464,7 @@ class Plugin(object):
         """Ask for the order, then start Kodi's picture slideshow over a flat plugin listing."""
         order = self.params.get("order")
         if order not in SLIDESHOW_ORDERS:
-            choice = xbmcgui.Dialog().select("Slideshow order", ["Newest first", "Oldest first", "Random"])
+            choice = xbmcgui.Dialog().select(L("slideshow_order"), [L("newest"), L("oldest"), L("random")])
             if choice < 0:  # cancelled
                 return
             order = SLIDESHOW_ORDERS[choice]
@@ -418,13 +472,34 @@ class Plugin(object):
         if "type:" not in q:
             q = (q + " type:image").strip()
         url = self.url(action="photos", q=q, album=self.params.get("album", ""), slideshow="1", order=order)
-        self.log.info("Starting slideshow: order=%s album=%s q=%s" % (order, self.params.get("album", ""), q))
         # An explicit [not]random flag keeps Kodi's global "Randomise" setting from overriding the choice.
-        xbmc.executebuiltin("SlideShow(%s,%s)" % (url, "random" if order == "random" else "notrandom"))
+        args = [url, "random" if order == "random" else "notrandom"]
+        begin = self.params.get("begin")
+        if begin and order != "random":  # "slideshow from here": start at that picture
+            args.append('beginslide="%s"' % self.image_url(begin))
+        self._prepare_effects()
+        self.log.info("Starting slideshow: order=%s album=%s q=%s begin=%s" % (
+            order, self.params.get("album", ""), q, begin or "-"))
+        xbmc.executebuiltin("SlideShow(%s)" % ",".join(args))
+
+    def _prepare_effects(self):
+        """Switch Kodi's pan/zoom effect off for this slideshow (the service restores it afterwards)."""
+        if not (s_bool("disable_pan_zoom") if s("disable_pan_zoom") else True):
+            return
+        if xbmcgui.Window(10000).getProperty(slideshow_fx.SERVICE_PROP) != "1":
+            self.log.warning("'Disable pan and zoom' is on but the KodiPrism background service is not running "
+                             "(restart Kodi after installing); effects left unchanged")
+            return
+        slideshow_fx.Guard(xbmc.executeJSONRPC, PROFILE, self.log).prepare()
+
+    def slideshow_settings(self):
+        alive = xbmcgui.Window(10000).getProperty(slideshow_fx.SERVICE_PROP) == "1"
+        xbmcgui.Dialog().textviewer("KodiPrism - slideshow settings",
+                                    slideshow_fx.describe(xbmc.executeJSONRPC, PROFILE, alive))
 
     def clear_cache(self):
         n = self.cache.clear()
-        notify("Cache cleared (%d files)" % n, error=False)
+        notify(L("cache_cleared") % n, error=False)
 
     def test_connection(self):
         """Step-by-step connection check shown in a text viewer. Uses the *saved* settings."""
@@ -490,14 +565,14 @@ class Plugin(object):
 
     def clear_log(self):
         self.log.clear()
-        notify("Add-on log cleared", error=False)
+        notify(L("log_cleared"), error=False)
 
     def dispatch(self):
         self._prefetch = []
         action = self.params.get("action")
         routes = {None: self.root, "albums": self.albums, "photos": self.photos,
                   "search": self.search, "search_albums": self.search_albums, "play": self.play,
-                  "slideshow": self.slideshow,
+                  "slideshow": self.slideshow, "slideshow_settings": self.slideshow_settings,
                   "clear_cache": self.clear_cache, "test_connection": self.test_connection,
                   "show_log": self.show_log, "clear_log": self.clear_log}
         fn = routes.get(action)
@@ -524,7 +599,7 @@ class Plugin(object):
             self._fail(action)
         except Exception:
             self.log.exception("Unexpected error in action %r" % action)
-            notify("Unexpected error - see Settings > Troubleshooting > View add-on log")
+            notify(L("unexpected"))
             self._fail(action)
         else:
             if self.api:

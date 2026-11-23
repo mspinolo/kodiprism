@@ -38,6 +38,25 @@ for el in settings.iter():
 check(used and used <= defined, "all settings label ids exist in strings.po (missing: %s)" % sorted(used - defined))
 check(len(re.findall(r'msgctxt "#(\d+)"', po)) == len(defined), "no duplicate string ids in strings.po")
 
+# translations: Italian has every id of the English source, translated, with the same placeholders
+lang = os.path.join(ADDON, "resources", "language")
+def po_entries(code):
+    text = open(os.path.join(lang, "resource.language.%s" % code, "strings.po"), encoding="utf-8").read()
+    return {int(i): (en, tr) for i, en, tr in re.findall(r'msgctxt "#(\d+)"\nmsgid "(.*)"\nmsgstr "(.*)"', text)}
+en_po, it_po = po_entries("en_gb"), po_entries("it_it")
+check(set(en_po) == set(it_po), "it_it has exactly the string ids of en_gb (diff: %s)" % sorted(set(en_po) ^ set(it_po)))
+check(all(it_po[i][1].strip() for i in it_po) and all(it_po[i][0] == en_po[i][0] for i in it_po), "it_it: every string translated, msgid equals the English source")
+ph = lambda t: sorted(re.findall(r"%[sd]", t))
+check(all(ph(en_po[i][0]) == ph(it_po[i][1]) for i in en_po), "it_it keeps the %d / %s placeholders of the English text")
+src = open(os.path.join(ADDON, "resources", "lib", "plugin.py"), encoding="utf-8").read()
+str_ids = {int(i) for i in re.findall(r'"[a-z_]+": (30\d{3})', src[src.index("STR = {"):src.index("def L(")])}
+check(str_ids and str_ids <= set(en_po), "every string id used by plugin.py exists in strings.po (missing: %s)" % sorted(str_ids - set(en_po)))
+check(not re.findall(r'add_dir\("[A-Za-z]', src) and "notify(\"" not in src, "no hard-coded English labels or notifications left in plugin.py")
+
+# the background service is declared and its file exists
+svc = [e for e in addon.findall("extension") if e.get("point") == "xbmc.service"]
+check(len(svc) == 1 and os.path.exists(os.path.join(ADDON, svc[0].get("library"))), "xbmc.service extension declared and service.py exists")
+
 # every setting id referenced by the code exists in settings.xml
 ids = {s.get("id") for s in settings.iter("setting")}
 code = open(os.path.join(ADDON, "resources", "lib", "plugin.py"), encoding="utf-8").read()
