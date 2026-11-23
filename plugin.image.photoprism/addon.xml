@@ -7,7 +7,7 @@
   <extension point="xbmc.python.pluginsource" library="default.py">
     <provides>image video</provides>
   </extension>
-  <extension point="xbmc.service" library="service.py" start="startup"/>
+  <extension point="xbmc.service" library="service.py"/>
   <extension point="xbmc.addon.metadata">
     <summary lang="en_GB">Kodi add-on for PhotoPrism: browse albums, photos and videos</summary>
     <description lang="en_GB">Kodi add-on for PhotoPrism. Browse the albums, timeline, photos and videos of your own PhotoPrism server, search albums, search with PhotoPrism query syntax, run slideshows (newest, oldest or random first) and play videos, with on-disk caching. Not affiliated with or endorsed by PhotoPrism.</description>

@@ -18,6 +18,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versions follow
 - **Hide empty albums** setting (on by default).
 - **First-run guide**: when the server address was never set, offers once to open the settings.
 ### Changed
+- The service's logic lives in `resources/lib/service_main.py`; `service.py` is a 4-line entry point (the add-on checker
+  rejects entry points over 15 lines and the `start` attribute on `xbmc.service`).
 - Random lists are never cached; lists marked `fresh` (Recently added) are never cached either.
 
 ## [1.1.0] - 2026-11-22

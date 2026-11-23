@@ -56,6 +56,11 @@ check(not re.findall(r'add_dir\("[A-Za-z]', src) and "notify(\"" not in src, "no
 # the background service is declared and its file exists
 svc = [e for e in addon.findall("extension") if e.get("point") == "xbmc.service"]
 check(len(svc) == 1 and os.path.exists(os.path.join(ADDON, svc[0].get("library"))), "xbmc.service extension declared and service.py exists")
+# learned from the real kodi-addon-checker (Omega schema): xbmc.service only accepts point/id/name/library,
+# and entry-point scripts must stay at 15 counted lines or fewer
+check(set(svc[0].attrib) <= {"point", "id", "name", "library"}, "xbmc.service uses only attributes allowed by the Omega schema")
+code_lines = [l for l in open(os.path.join(ADDON, "service.py"), encoding="utf-8").read().splitlines() if l.strip() and not l.strip().startswith("#")]
+check(len(code_lines) <= 15, "service.py is a thin entry point (%d lines)" % len(code_lines))
 
 # every setting id referenced by the code exists in settings.xml
 ids = {s.get("id") for s in settings.iter("setting")}
