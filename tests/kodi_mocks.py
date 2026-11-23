@@ -19,7 +19,9 @@ SETTINGS = {"server_url": "", "auth_mode": "0", "username": "admin", "password":
             "prefetch_threads": "2", "cache_enabled": "true", "cache_path": "", "cache_max_mb": "500",
             "cache_ttl_hours": "24", "timeout": "3", "verify_ssl": "true", "video_format": "avc",
             "debug_log": "false"}
-LOG = {"items": [], "notes": [], "end": [], "resolved": [], "builtin": [], "klog": [], "text": []}
+LOG = {"items": [], "notes": [], "end": [], "resolved": [], "builtin": [], "klog": [], "text": [], "progress": [], "selects": []}
+KBCFG = {"text": "label:cat", "ok": True}   # what the fake on-screen keyboard returns
+SELECT = {"value": 0}                       # which entry the fake Dialog().select() picks (-1 = cancel)
 def mod(n): m = types.ModuleType(n); sys.modules[n] = m; return m
 x = mod("xbmc"); x.LOGDEBUG, x.LOGINFO, x.LOGWARNING, x.LOGERROR = 0, 1, 2, 3
 x.log = lambda m, l=1: LOG["klog"].append((l, m))
@@ -27,8 +29,8 @@ x.executebuiltin = lambda c: LOG["builtin"].append(c)
 class KB:
     def __init__(s, *a): pass
     def doModal(s): pass
-    def isConfirmed(s): return True
-    def getText(s): return "label:cat"
+    def isConfirmed(s): return KBCFG["ok"]
+    def getText(s): return KBCFG["text"]
 x.Keyboard = KB
 a = mod("xbmcaddon")
 class Addon:
@@ -37,9 +39,10 @@ class Addon:
 a.Addon = Addon
 g = mod("xbmcgui"); g.NOTIFICATION_ERROR, g.NOTIFICATION_INFO = "e", "i"
 class LI:
-    def __init__(s, label="", path=""): s.label, s.path, s.art, s.props = label, path, {}, {}
+    def __init__(s, label="", path=""): s.label, s.path, s.art, s.props, s.label2 = label, path, {}, {}, ""
     def setArt(s, d): s.art = d
     def setInfo(s, *a): pass
+    def setLabel2(s, v): s.label2 = v
     def setProperty(s, k, v): s.props[k] = v
     def setMimeType(s, m): pass
     def setContentLookup(s, b): pass
@@ -54,9 +57,16 @@ g.ListItem = LI
 class D:
     def notification(s, h, m, *a): LOG["notes"].append(m)
     def textviewer(s, h, t, *a): LOG["text"].append((h, t))
+    def select(s, h, opts, *a): LOG["selects"].append((h, list(opts))); return SELECT["value"]
+class PBG:
+    def create(s, h, m=""): LOG["progress"].append("create")
+    def update(s, pct=0, heading="", message=""): LOG["progress"].append("update")
+    def close(s): LOG["progress"].append("close")
+g.DialogProgressBG = PBG
 g.Dialog = D
 p = mod("xbmcplugin")
-p.addDirectoryItem = lambda h, u, li, f=False: LOG["items"].append((li.label, u, li.art.get("thumb"), f))
+p.addDirectoryItem = lambda h, u, li, f=False: LOG["items"].append((li.label, u, li.art.get("thumb"), f, li.label2))
+p.setPluginCategory = lambda h, c: LOG["text"].append(("category", c))
 p.endOfDirectory = lambda h, succeeded=True, **k: LOG["end"].append(succeeded)
 p.setContent = lambda *a: None
 p.setResolvedUrl = lambda h, ok, li: LOG["resolved"].append((ok, li.path))

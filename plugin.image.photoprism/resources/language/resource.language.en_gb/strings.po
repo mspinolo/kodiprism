@@ -115,3 +115,23 @@ msgstr ""
 msgctxt "#30064"
 msgid "Clear add-on log"
 msgstr ""
+
+msgctxt "#30065"
+msgid "Sort order (albums by date of last photo)"
+msgstr ""
+
+msgctxt "#30066"
+msgid "Newest first"
+msgstr ""
+
+msgctxt "#30067"
+msgid "Oldest first"
+msgstr ""
+
+msgctxt "#30068"
+msgid "Name (A-Z)"
+msgstr ""
+
+msgctxt "#30069"
+msgid "Maximum images per slideshow"
+msgstr ""

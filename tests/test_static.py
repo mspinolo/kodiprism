@@ -22,6 +22,8 @@ def check(cond, msg):
 addon = ET.parse(os.path.join(ADDON, "addon.xml")).getroot()
 settings = ET.parse(os.path.join(ADDON, "resources", "settings.xml")).getroot()
 check(addon.get("id") == os.path.basename(ADDON), "addon id == folder name")
+check(addon.get("name") == "KodiPrism", "add-on display name is KodiPrism (the PhotoPrism name/logo are trademarks)")
+check("Not affiliated" in (addon.findtext(".//description") or ""), "description says the add-on is not affiliated with PhotoPrism")
 
 # every numeric label used by settings.xml exists in strings.po
 po = open(os.path.join(ADDON, "resources", "language", "resource.language.en_gb", "strings.po"),

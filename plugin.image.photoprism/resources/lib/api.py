@@ -190,9 +190,9 @@ class PhotoPrism(object):
         return cfg
 
     # ---- data ----
-    def albums(self, count=60, offset=0, atype="album", q=""):
+    def albums(self, count=60, offset=0, atype="album", q="", order=None):
         p = {"count": count, "offset": offset, "type": atype,
-             "order": "name" if atype == "album" else "newest"}
+             "order": order or ("name" if atype == "album" else "newest")}
         if q:
             p["q"] = q
         return self._req("GET", "/albums", params=p, with_rows=True)
@@ -204,6 +204,11 @@ class PhotoPrism(object):
         if album:
             p["s"] = album
         return self._req("GET", "/photos", params=p, with_rows=True)
+
+    def last_photo_date(self, album_uid):
+        """TakenAt of the newest photo in an album ('' when the album is empty)."""
+        items = self.photos(count=1, album=album_uid, order="newest")["items"]
+        return (items[0].get("TakenAt") or "") if items else ""
 
     # ---- helpers ----
     @staticmethod

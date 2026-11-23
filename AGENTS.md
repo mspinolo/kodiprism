@@ -4,20 +4,21 @@ Orientation for any AI agent (or human) picking up this repository. Read this fi
 [`docs/knowledge.md`](docs/knowledge.md) for the detailed technical knowledge.
 
 ## What this is
-`plugin.image.photoprism`: a Kodi 21 "Omega" (Python 3) add-on that browses a self-hosted
+**KodiPrism** (add-on id `plugin.image.photoprism`): a Kodi 21 "Omega" (Python 3) add-on that browses a self-hosted
 [PhotoPrism](https://www.photoprism.app/) server — albums, folders, moments, calendar, all photos, videos,
 favorites, PhotoPrism query search, slideshow — with password or app-password login and an on-disk cache.
 Owner: Michele (`mspinolo`). Target setup: LibreELEC (Omega) 12.2.1 / Kodi 21 against PhotoPrism CE.
 The first version was generated entirely by Claude Opus; the owner made the first commit by hand (the LICENSE).
 
 ## Current status (keep this section honest and up to date)
-- Version **1.0.2** (see `CHANGELOG.md`). License **GPL-3.0** (`LICENSE`, mirrored in `addon.xml`).
+- Version **1.1.0** (see `CHANGELOG.md`). License **GPL-3.0** (`LICENSE`, mirrored in `addon.xml`).
 - Verified in automation: unit/integration tests with mocked `xbmc*` modules against a fake PhotoPrism
   server (`tests/test_addon.py`), offline static checks (`tests/test_static.py`), pyflakes, mypy+Kodistubs.
 - Reported by the previous agent but **not re-verified** by later sessions: `tests/test_live.py` against a real
   PhotoPrism Docker container (needs `PP_PASS`, `PP_APP`, `PP_URL`).
-- **Never verified inside a real Kodi.** Screens, settings dialog, SlideShow over a plugin list, video
-  playback and prefetch thread behaviour are all unconfirmed. This is the biggest open risk.
+- **Real Kodi:** the owner confirmed (1.0.2, LibreELEC/Kodi 21) that connection and browsing work and photos
+  display. Album covers were missing (fixed in 1.0.3, to be confirmed). Slideshow over a plugin list, the new
+  1.1.0 features, video playback and prefetch thread behaviour are still unconfirmed in real Kodi.
 - `kodi-addon-checker` needs internet (it downloads the official add-on list), so it runs in CI
   (`.github/workflows/ci.yml`), not in offline sandboxes. Check the CI result before claiming it passes.
 
@@ -31,7 +32,7 @@ assets/                    icon.svg, fanart.svg — sources of the generated art
 docs/knowledge.md          API facts, Kodi patterns, design decisions, testing recipes, known bugs
 .github/workflows/         ci.yml (every push/PR) · release.yml (tag vX.Y.Z -> GitHub Release with the zip)
 ```
-Code is small: `api.py` REST client (URL normalisation, error messages), `cache.py` TTL+LRU disk cache, `logger.py` logging with secret masking, `plugin.py` routing/UI.
+Code is small: `api.py` REST client (URL normalisation, error messages), `catalog.py` album search/sort/last-photo dates, `cache.py` TTL+LRU disk cache, `logger.py` logging with secret masking, `plugin.py` routing/UI.
 
 ## Commands
 ```

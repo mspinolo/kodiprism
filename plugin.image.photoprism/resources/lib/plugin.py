@@ -14,6 +14,7 @@ import xbmcgui
 import xbmcplugin
 import xbmcvfs
 
+from resources.lib import catalog
 from resources.lib.api import PhotoPrism, ApiError, AuthError, normalize_base_url
 from resources.lib.cache import DiskCache, resolve_dir
 from resources.lib.logger import AddonLog
@@ -24,6 +25,10 @@ NAME = ADDON.getAddonInfo("name")
 ICON = ADDON.getAddonInfo("icon")
 FANART = ADDON.getAddonInfo("fanart")
 PROFILE = xbmcvfs.translatePath(ADDON.getAddonInfo("profile"))
+
+
+SLIDESHOW_ORDERS = ("newest", "oldest", "random")
+ORDERS = SLIDESHOW_ORDERS + ("name", "added")
 
 
 def notify(msg, error=True):
@@ -57,7 +62,8 @@ class Plugin(object):
         self.full_size = s("full_size") or "fit_1920"
         self.log = AddonLog(ADDON_ID, PROFILE, s_bool("debug_log"))
         self.log.add_secret(s("password"), s("token"))
-        self.user_agent = "Kodi-PhotoPrism/%s" % (ADDON.getAddonInfo("version") or "dev")
+        self.user_agent = "KodiPrism/%s" % (ADDON.getAddonInfo("version") or "dev")
+        self.sort = {0: "newest", 1: "oldest", 2: "name"}.get(s_int("sort_order", 0), "newest")
         if not os.path.isdir(PROFILE):
             os.makedirs(PROFILE, exist_ok=True)
         user_dir = xbmcvfs.translatePath(s("cache_path")) if s("cache_path") else ""
@@ -199,44 +205,110 @@ class Plugin(object):
         self.add_dir("All photos", self.url(action="photos"))
         self.add_dir("Videos", self.url(action="photos", q="type:video"))
         self.add_dir("Favorites", self.url(action="photos", q="favorite:true"))
-        self.add_dir("Search...", self.url(action="search"))
+        self.add_dir("Search albums...", self.url(action="search_albums"))
+        self.add_dir("Search photos...", self.url(action="search"))
         self.add_dir("Slideshow: all photos", self.url(action="slideshow", q="type:image"), folder=False)
         self.add_dir("Clear cache", self.url(action="clear_cache"), folder=False)
         xbmcplugin.endOfDirectory(self.handle)
+
+    def _progress_bg(self):
+        """Lazy background progress dialog: only shown when there is real work to do."""
+        state: dict = {"dlg": None}
+
+        def update(done, total):
+            dlg = state["dlg"]
+            if dlg is None:
+                dlg = state["dlg"] = xbmcgui.DialogProgressBG()
+                dlg.create(NAME, "Reading album dates...")
+            dlg.update(int(100.0 * done / max(total, 1)), message="%d / %d" % (done, total))
+
+        def close():
+            if state["dlg"] is not None:
+                state["dlg"].close()
+        return update, close
+
+    def _add_album(self, api, a, date=""):
+        uid = a.get("UID")
+        title = a.get("Title") or uid
+        n = a.get("PhotoCount")
+        label = "%s (%s)" % (title, n) if n is not None else title
+        cover = a.get("Thumb")
+        if cover:
+            # Same endpoint (and cache entry) as photo thumbnails, which is known to work.
+            art = self.thumb("t|%s|%s" % (cover, self.thumb_size), api.thumb_url(cover, self.thumb_size))
+        else:  # no cover photo recorded: fall back to the album-specific endpoint
+            art = self.thumb("album|%s|%s" % (uid, self.thumb_size), api.album_cover_url(uid, self.thumb_size))
+        li = xbmcgui.ListItem(label)
+        if date:
+            li.setLabel2(catalog.day(date))
+        li.setArt({"thumb": art, "icon": art, "fanart": FANART})
+        li.addContextMenuItems([("Slideshow", "RunPlugin(%s)" % self.url(action="slideshow", album=uid))])
+        xbmcplugin.addDirectoryItem(self.handle, self.url(action="photos", album=uid, title=title), li, True)
 
     def albums(self):
         api = self.connect()
         atype = self.params.get("type", "album")
         offset = int(self.params.get("offset", 0))
-        key = "albums|%s|%s|%d|%d" % (api.base, atype, offset, self.page_size)
-        res = self.cached_call(key, lambda: api.albums(self.page_size, offset, atype))
+        xbmcplugin.setContent(self.handle, "images")
+        if atype == "album":
+            return self._album_catalogue(api, offset)
+        # Folders / moments / calendar months have their own dates: let the server sort and page.
+        key = "albums|%s|%s|%s|%d|%d" % (api.base, atype, self.sort, offset, self.page_size)
+        res = self.cached_call(key, lambda: api.albums(self.page_size, offset, atype, order=self.sort))
         items, rows = res["items"], res["rows"]
         more = rows >= self.page_size
-        xbmcplugin.setContent(self.handle, "images")
         for a in items[:self.page_size]:
-            uid = a.get("UID")
-            title = a.get("Title") or uid
-            n = a.get("PhotoCount")
-            label = "%s (%s)" % (title, n) if n is not None else title
-            cover = a.get("Thumb")
-            if cover:
-                # Same endpoint (and cache entry) as photo thumbnails, which is known to work.
-                art = self.thumb("t|%s|%s" % (cover, self.thumb_size), api.thumb_url(cover, self.thumb_size))
-            else:  # no cover photo recorded: fall back to the album-specific endpoint
-                art = self.thumb("album|%s|%s" % (uid, self.thumb_size),
-                                 api.album_cover_url(uid, self.thumb_size))
-            li = xbmcgui.ListItem(label)
-            li.setArt({"thumb": art, "icon": art, "fanart": FANART})
-            li.addContextMenuItems([("Slideshow", "RunPlugin(%s)" % self.url(action="slideshow", album=uid))])
-            xbmcplugin.addDirectoryItem(self.handle, self.url(action="photos", album=uid, title=title), li, True)
+            self._add_album(api, a)
         if more:
             self.add_dir("[B]Next page >>[/B]", self.url(action="albums", type=atype, offset=offset + rows))
         xbmcplugin.endOfDirectory(self.handle, cacheToDisc=False)
 
-    def _photo_query(self, offset, q, album, count):
+    def _album_catalogue(self, api, offset):
+        """Albums: loaded completely, searched/sorted/paged locally (see catalog.py)."""
+        q = self.params.get("q", "").strip()
+        albums = catalog.load_all(api, "album")
+        dates = {}
+        if self.sort != "name":
+            update, close = self._progress_bg()
+            try:
+                dates = catalog.last_photo_dates(api, self.cache, albums, self.log, progress=update,
+                                                 max_age=s_int("cache_ttl_hours", 24) * 3600)
+            finally:
+                close()
+        shown = [a for a in albums if catalog.matches(a, q)] if q else albums
+        ordered = catalog.sort_albums(shown, dates, self.sort)
+        page = ordered[offset:offset + self.page_size]
+        if q:
+            xbmcplugin.setPluginCategory(self.handle, "Search: %s" % q)
+        elif offset == 0:
+            self.add_dir("Search albums...", self.url(action="search_albums"))
+        for a in page:
+            self._add_album(api, a, dates.get(a["UID"], ""))
+        if offset + self.page_size < len(ordered):
+            nxt = {"action": "albums", "type": "album", "offset": offset + self.page_size}
+            if q:
+                nxt["q"] = q
+            self.add_dir("[B]Next page >>[/B]", self.url(**nxt))
+        if not ordered:
+            notify("No albums found" if q else "No albums", error=False)
+        xbmcplugin.endOfDirectory(self.handle, cacheToDisc=False)
+
+    def search_albums(self):
+        kb = xbmc.Keyboard("", "Search albums (title or place)")
+        kb.doModal()
+        if not kb.isConfirmed() or not kb.getText().strip():
+            xbmcplugin.endOfDirectory(self.handle, succeeded=False)
+            return
+        self.params = {"action": "albums", "type": "album", "q": kb.getText().strip()}
+        self.albums()
+
+    def _photo_query(self, offset, q, album, count, order=None):
         api = self.connect()
-        key = "photos|%s|%s|%s|%d|%d" % (api.base, q, album, offset, count)
-        return self.cached_call(key, lambda: api.photos(count, offset, q=q, album=album))
+        order = order or self.sort
+        if order == "random":  # every call must give a new draw: never cached
+            return api.photos(count, offset, q=q, album=album, order=order)
+        key = "photos|%s|%s|%s|%s|%d|%d" % (api.base, q, album, order, offset, count)
+        return self.cached_call(key, lambda: api.photos(count, offset, q=q, album=album, order=order))
 
     def photos(self):
         api = self.connect()
@@ -244,18 +316,28 @@ class Plugin(object):
         album = self.params.get("album", "")
         offset = int(self.params.get("offset", 0))
         flat = self.params.get("slideshow") == "1"
-        if flat:  # slideshow: flat list of up to 1000 images, no navigation items
+        order = self.params.get("order")
+        if order not in ORDERS:
+            order = self.sort
+        if flat:  # slideshow: flat list of up to `slideshow_limit` images, no navigation items
+            limit = s_int("slideshow_limit", 2000)
             items: list = []
-            batch, pos = 200, 0
-            while len(items) < 1000:
-                res = self._photo_query(pos, q, album, batch)
-                items += res["items"]
-                pos += res["rows"]
-                if res["rows"] < batch or not res["items"]:
-                    break
+            if order == "random":  # successive random draws would overlap: ask for everything at once
+                res = self._photo_query(0, q, album, limit, order)
+                items, pos = res["items"], res["rows"]
+            else:
+                pos = 0
+                while len(items) < limit:
+                    n = min(500, limit - len(items))
+                    res = self._photo_query(pos, q, album, n, order)
+                    items += res["items"]
+                    pos += res["rows"]
+                    if res["rows"] < n or not res["items"]:
+                        break
+            items = items[:limit]
             rows, more = pos, False
         else:
-            res = self._photo_query(offset, q, album, self.page_size)
+            res = self._photo_query(offset, q, album, self.page_size, order)
             items, rows = res["items"], res["rows"]
             more = rows >= self.page_size and bool(items)
         xbmcplugin.setContent(self.handle, "images")
@@ -325,12 +407,20 @@ class Plugin(object):
         xbmcplugin.setResolvedUrl(self.handle, True, li)
 
     def slideshow(self):
-        """Start Kodi's picture slideshow over a flat plugin listing (images only)."""
+        """Ask for the order, then start Kodi's picture slideshow over a flat plugin listing."""
+        order = self.params.get("order")
+        if order not in SLIDESHOW_ORDERS:
+            choice = xbmcgui.Dialog().select("Slideshow order", ["Newest first", "Oldest first", "Random"])
+            if choice < 0:  # cancelled
+                return
+            order = SLIDESHOW_ORDERS[choice]
         q = self.params.get("q", "")
         if "type:" not in q:
             q = (q + " type:image").strip()
-        xbmc.executebuiltin("SlideShow(%s)" % self.url(action="photos", q=q,
-                            album=self.params.get("album", ""), slideshow="1"))
+        url = self.url(action="photos", q=q, album=self.params.get("album", ""), slideshow="1", order=order)
+        self.log.info("Starting slideshow: order=%s album=%s q=%s" % (order, self.params.get("album", ""), q))
+        # An explicit [not]random flag keeps Kodi's global "Randomise" setting from overriding the choice.
+        xbmc.executebuiltin("SlideShow(%s,%s)" % (url, "random" if order == "random" else "notrandom"))
 
     def clear_cache(self):
         n = self.cache.clear()
@@ -406,7 +496,8 @@ class Plugin(object):
         self._prefetch = []
         action = self.params.get("action")
         routes = {None: self.root, "albums": self.albums, "photos": self.photos,
-                  "search": self.search, "play": self.play, "slideshow": self.slideshow,
+                  "search": self.search, "search_albums": self.search_albums, "play": self.play,
+                  "slideshow": self.slideshow,
                   "clear_cache": self.clear_cache, "test_connection": self.test_connection,
                   "show_log": self.show_log, "clear_log": self.clear_log}
         fn = routes.get(action)

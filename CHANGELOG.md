@@ -2,6 +2,24 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versions follow `addon.xml`.
 
+## [1.1.0] - 2026-11-22
+### Added
+- **Search albums** (main menu and top of the Albums list): every word must appear in the title or place;
+  case and accents are ignored.
+- **Sort order** setting (newest first by default, oldest first, name) applied to every list. Albums have no
+  date of their own on a typical server (Year/Month/Day are 0), so they are sorted by the date of the **newest
+  photo they contain**, shown as the album's second label. Dates are read once per album (6 in parallel, with a
+  background progress dialog) and cached; only albums whose `UpdatedAt` / photo count changed are re-read.
+- **Slideshow order prompt**: newest first, oldest first or random, from every entry point. Random is drawn by
+  the server over the whole library/album; ordered modes pass `notrandom` so Kodi's global *Randomise* option
+  cannot override the choice.
+- **Maximum images per slideshow** setting (default 2000, was a fixed 1000).
+### Changed
+- Display name is now **KodiPrism** (the add-on id stays `plugin.image.photoprism`, so updates keep working);
+  description states that it is not affiliated with PhotoPrism. The PhotoPrism logo is not used.
+- User-Agent is `KodiPrism/<version>`. Root menu: *Search...* is now *Search photos...*.
+- Albums are always fetched fresh (one request); only their dates are cached.
+
 ## [1.0.3] - 2026-11-22
 ### Fixed
 - Album covers were not displayed on a real server. The add-on used the album-specific cover endpoint
