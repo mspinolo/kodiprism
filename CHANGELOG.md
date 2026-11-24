@@ -2,6 +2,20 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versions follow `addon.xml`.
 
+## [1.2.2] - 2026-11-24
+### Fixed
+- The root-menu items *Slideshow* and *Clear cache* (and the *> Slideshow* item at the top of photo lists) never
+  closed the list, which in Kodi can leave a busy spinner. They are now regular entries that close the list as
+  "failed" (Kodi stays where it is); started with *RunPlugin* (context menu) nothing is touched.
+- HTTP 403 ("not allowed", e.g. an app password with too narrow a scope) is no longer treated as an expired
+  session: no pointless second login, a clear message instead.
+- Photo and album listings are read again from the server after 10 minutes even with the default 24 h cache
+  lifetime, so new photos show up quickly (thumbnails still use the long lifetime).
+### Added
+- `tests/live_scale.py` and a scale step in the *live-photoprism* workflow (manual and weekly, never blocking):
+  2100 photos, 100 albums, a request for 2000 photos and the cold/warm album catalogue timings against a real
+  PhotoPrism. Tests for the three fixes (162 checks).
+
 ## [1.2.1] - 2026-11-24
 ### Fixed
 - *Search albums* never closed the directory when the server could not be reached, which can leave Kodi waiting.

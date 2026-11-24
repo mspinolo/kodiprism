@@ -11,7 +11,7 @@ Owner: Michele (`mspinolo`). Target setup: LibreELEC (Omega) 12.2.1 / Kodi 21 ag
 The first version was generated entirely by Claude Opus; the owner made the first commit by hand (the LICENSE).
 
 ## Current status (keep this section honest and up to date)
-- Version **1.2.1** (see `CHANGELOG.md`). License **GPL-3.0** (`LICENSE`, mirrored in `addon.xml`).
+- Version **1.2.2** (see `CHANGELOG.md`). License **GPL-3.0** (`LICENSE`, mirrored in `addon.xml`).
 - Verified in automation: unit/integration tests with mocked `xbmc*` modules against a fake PhotoPrism
   server (`tests/test_addon.py`), offline static checks (`tests/test_static.py`), pyflakes, mypy+Kodistubs.
 - Reported by the previous agent but **not re-verified** by later sessions: `tests/test_live.py` against a real
@@ -31,6 +31,7 @@ tools/                     build_zip.py (-> dist/, gitignored) · render_assets.
 assets/                    icon.svg, fanart.svg — sources of the generated artwork
 docs/knowledge.md          API facts, Kodi patterns, design decisions, testing recipes, known bugs
 .github/workflows/         ci.yml (every push/PR) · release.yml (tag vX.Y.Z -> GitHub Release with the zip)
+                           live.yml (real PhotoPrism in Docker; manual + weekly, never blocking; report in annotations)
 ```
 Code is small: `api.py` REST client (URL normalisation, error messages), `catalog.py` album search/sort/last-photo dates, `slideshow_fx.py` + `service.py` pan/zoom guard, `cache.py` TTL+LRU disk cache, `logger.py` logging with secret masking, `plugin.py` routing/UI.
 
@@ -66,14 +67,11 @@ Live test: `PP_URL=http://host:2342 PP_PASS=... PP_APP=<app password> python3 te
    album covers (1.0.3), album dates and progress dialog (1.1.0), slideshow order, pan/zoom service, Italian UI,
    *Slideshow from here*, *On this day* and the other 1.2.0 items, video playback and the cache folder picker.
    The checklist is in issue #2.
-2. **Listing cache TTL**: photo listings are cached for the cache lifetime (24 h by default), so new photos can
-   take that long to appear in *All photos* or a slideshow (*Recently added* bypasses the cache; albums are
-   always fetched fresh). Consider a separate, short TTL for listings.
-3. Verify the effect of `public=true` in `api.photos()` (could hide private photos; semantics unconfirmed).
-4. HTTP 403 is treated like 401 (invalidates the session and retries once). Distinguish "forbidden" (scope)
-   from "unauthenticated".
-5. Non-folder, non-playable items (root "Slideshow", "Clear cache") never call `endOfDirectory`; confirm Kodi
-   handles that cleanly or switch them to `RunPlugin(...)` items.
+2. (done in 1.2.2) Listings are re-read after 10 minutes (`LISTING_MAX_AGE`); thumbnails keep the long lifetime.
+3. `public=true` in `api.photos()` hides Private photos (verified against a real server, knowledge.md §13); kept on
+   purpose. Say so if the owner wants private photos shown.
+4. (done in 1.2.2) 403 is its own error. (done in 1.2.2) root "Slideshow"/"Clear cache" are folder items closed
+   with `endOfDirectory(succeeded=False)`; confirm in real Kodi that this leaves no spinner.
 6. `run_prefetch()` joins worker threads (up to 60 s each) inside the plugin invocation; confirm it does not
    delay directory display in Kodi, otherwise move it to a service or detach it.
 7. Preview/download tokens appear in image/video URLs, so they can show up in Kodi debug logs. Acceptable for a

@@ -30,6 +30,10 @@ PROFILE = xbmcvfs.translatePath(ADDON.getAddonInfo("profile"))
 
 SLIDESHOW_ORDERS = ("newest", "oldest", "random")
 ORDERS = SLIDESHOW_ORDERS + ("name", "added")
+LISTING_MAX_AGE = 600  # seconds: photo/album listings are re-read after 10 min even if the cache lifetime is longer
+# Actions that build no directory. When picked from a list (a real handle) the list is closed as "failed",
+# which makes Kodi stay where it is (no spinner, no error); via RunPlugin the handle is -1 and nothing is done.
+ACTION_ONLY = ("slideshow", "clear_cache")
 
 
 # ids in resources/language/*/strings.po (English is the source text; Italian is translated)
@@ -164,8 +168,8 @@ class Plugin(object):
             pass
         self.api = None
 
-    def cached_call(self, key, fn):
-        data = self.cache.get_json(key)
+    def cached_call(self, key, fn, max_age=LISTING_MAX_AGE):
+        data = self.cache.get_json(key, max_age)
         if data is not None:
             return data
         data = fn()
@@ -245,8 +249,8 @@ class Plugin(object):
         self.add_dir(L("favorites"), self.url(action="photos", q="favorite:true"))
         self.add_dir(L("search_albums"), self.url(action="search_albums"))
         self.add_dir(L("search_photos"), self.url(action="search"))
-        self.add_dir(L("slideshow_all"), self.url(action="slideshow", q="type:image"), folder=False)
-        self.add_dir(L("clear_cache"), self.url(action="clear_cache"), folder=False)
+        self.add_dir(L("slideshow_all"), self.url(action="slideshow", q="type:image"))
+        self.add_dir(L("clear_cache"), self.url(action="clear_cache"))
         xbmcplugin.endOfDirectory(self.handle)
 
     def _stat(self, name, **values):
@@ -443,7 +447,7 @@ class Plugin(object):
         if self.params.get("title"):
             xbmcplugin.setPluginCategory(self.handle, self.params["title"])
         if offset == 0 and items and not flat:
-            self.add_dir("[I]> %s[/I]" % L("slideshow"), self.url(action="slideshow", q=q, album=album), folder=False)
+            self.add_dir("[I]> %s[/I]" % L("slideshow"), self.url(action="slideshow", q=q, album=album))
         for p in items:
             h = p.get("Hash")
             if not h:
@@ -661,12 +665,20 @@ class Plugin(object):
             notify(L("unexpected"))
             self._fail(action)
         else:
+            if action in ACTION_ONLY:
+                self._close_action()
             if self.api:
                 self.run_prefetch()
+
+    def _close_action(self):
+        if self.handle >= 0:
+            xbmcplugin.endOfDirectory(self.handle, succeeded=False, cacheToDisc=False)
 
     def _fail(self, action):
         if action in ("albums", "photos", "search", "search_albums"):  # every action that builds a directory
             xbmcplugin.endOfDirectory(self.handle, succeeded=False)
+        elif action in ACTION_ONLY:
+            self._close_action()
         elif action == "play":
             xbmcplugin.setResolvedUrl(self.handle, False, xbmcgui.ListItem())
 
