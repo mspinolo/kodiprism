@@ -7,6 +7,26 @@ permissions:
   contents: read
 jobs:
   test:
+    name: tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install tools
+        run: pip install requests pillow hypothesis
+      - name: Tests (source tree)
+        run: make test
+      - name: Tests (the unpacked release zip)
+        run: make test-zip
+
+  package:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,9 +34,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install tools
-        run: pip install requests pillow pyflakes mypy Kodistubs kodi-addon-checker
-      - name: Tests
-        run: make test
+        run: pip install requests pillow hypothesis coverage pyflakes mypy Kodistubs kodi-addon-checker
+      - name: Coverage (fails below the threshold in the Makefile)
+        run: make coverage
       - name: Lint (pyflakes + mypy)
         run: make lint
       - name: Build zip

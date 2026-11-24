@@ -61,7 +61,7 @@ def load_all(api, atype="album", batch=500, max_batches=100):
     return [a for a in out if a.get("UID")]
 
 
-def last_photo_dates(api, cache, albums, log, progress=None, max_age=86400, workers=WORKERS):
+def last_photo_dates(api, cache, albums, log, progress=None, max_age=86400, workers=WORKERS, stats=None):
     """{album uid: ISO date of its newest photo ('' if empty or unknown)}.
 
     Reads only what changed since the last call (see module docstring). `progress(done, total)`
@@ -86,6 +86,8 @@ def last_photo_dates(api, cache, albums, log, progress=None, max_age=86400, work
         else:
             todo.append(a)
 
+    if stats is not None:
+        stats["fetched"] = len(todo)
     fresh: dict = {}
     auth_error: list = []
     lock = threading.Lock()

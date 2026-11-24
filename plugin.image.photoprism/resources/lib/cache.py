@@ -148,6 +148,11 @@ class DiskCache(object):
     def size(self):
         return sum(st.st_size for _, st in self._entries())
 
+    def usage(self):
+        """(number of cached files, total bytes)"""
+        entries = self._entries()
+        return len(entries), sum(st.st_size for _, st in entries)
+
     def evict(self):
         """Drop expired entries, then least-recently-used until under max size."""
         if not self.enabled:

@@ -7,7 +7,7 @@ import threading
 import time
 
 from typing import List, Optional, Tuple
-from urllib.parse import urlencode, parse_qsl
+from urllib.parse import urlencode, urlparse, parse_qsl
 
 import xbmc
 import xbmcaddon
@@ -249,6 +249,60 @@ class Plugin(object):
         self.add_dir(L("clear_cache"), self.url(action="clear_cache"), folder=False)
         xbmcplugin.endOfDirectory(self.handle)
 
+    def _stat(self, name, **values):
+        """Remember the latest measurement of an operation (shown by Support info)."""
+        path = os.path.join(PROFILE, "stats.json")
+        try:
+            with open(path, encoding="utf-8") as fh:
+                data = json.load(fh)
+        except (OSError, ValueError):
+            data = {}
+        values["at"] = time.strftime("%Y-%m-%d %H:%M")
+        data[name] = values
+        try:
+            os.makedirs(PROFILE, exist_ok=True)
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump(data, fh)
+        except OSError:
+            pass
+
+    def support_info(self):
+        """One block of text to paste into a bug report: versions, settings, timings, recent log. No secrets."""
+        parts = urlparse(s("server_url").strip() if "://" in s("server_url") else "http://" + s("server_url").strip())
+        files, size = self.cache.usage()
+        alive = xbmcgui.Window(10000).getProperty(slideshow_fx.SERVICE_PROP) == "1"
+        try:
+            with open(os.path.join(PROFILE, "stats.json"), encoding="utf-8") as fh:
+                stats = json.load(fh)
+        except (OSError, ValueError):
+            stats = {}
+        flag = lambda key, default=True: "on" if (s_bool(key) if s(key) else default) else "off"
+        lines = [
+            "KodiPrism support info (safe to share: no passwords, tokens or server name)",
+            "Add-on: %s %s (%s)" % (NAME, ADDON.getAddonInfo("version"), ADDON_ID),
+            "Kodi: %s | OS: %s | Skin: %s | Language: %s" % (
+                xbmc.getInfoLabel("System.BuildVersion"), xbmc.getInfoLabel("System.OSVersionInfo"),
+                xbmc.getSkinDir(), xbmc.getLanguage(xbmc.ENGLISH_NAME)),
+            "Server: %s://<host hidden>:%s | login: %s | verify TLS: %s | timeout: %ss" % (
+                parts.scheme or "?", parts.port or "default", "app password" if s("auth_mode") == "1" else "username/password",
+                flag("verify_ssl"), s_int("timeout", 15)),
+            "Browsing: sort=%s | page=%d | slideshow limit=%d | thumbs=%s | full size=%s | hide empty albums=%s | pan/zoom option=%s" % (
+                self.sort, self.page_size, s_int("slideshow_limit", 2000), self.thumb_size, self.full_size,
+                flag("hide_empty_albums"), flag("disable_pan_zoom")),
+            "Cache: %s | %d files, %.1f MB used | max %d MB, lifetime %d h | prefetch %s" % (
+                "on" if self.cache.enabled else "off", files, size / 1048576.0, s_int("cache_max_mb", 500),
+                s_int("cache_ttl_hours", 24), flag("prefetch")),
+            "Background service: %s | pan/zoom restore pending: %s" % (
+                "running" if alive else "NOT running", "yes" if os.path.exists(os.path.join(PROFILE, slideshow_fx.STATE_NAME)) else "no"),
+            "Debug logging: %s" % ("on" if self.log.debug_enabled else "off"), "",
+            "Latest measurements:"]
+        if not stats:
+            lines.append("  (none yet: open Albums or start a slideshow first)")
+        for name, v in sorted(stats.items()):
+            lines.append("  %s: %s" % (name, ", ".join("%s=%s" % (k, v[k]) for k in sorted(v))))
+        lines += ["", "Last log lines:", (self.log.tail(15).rstrip() or "(log is empty)")]
+        xbmcgui.Dialog().textviewer("KodiPrism - support info", "\n".join(lines))
+
     def _progress_bg(self):
         """Lazy background progress dialog: only shown when there is real work to do."""
         state: dict = {"dlg": None}
@@ -310,11 +364,14 @@ class Plugin(object):
         dates = {}
         if self.sort != "name":
             update, close = self._progress_bg()
+            t0 = time.time()
+            st: dict = {}
             try:
                 dates = catalog.last_photo_dates(api, self.cache, albums, self.log, progress=update,
-                                                 max_age=s_int("cache_ttl_hours", 24) * 3600)
+                                                 max_age=s_int("cache_ttl_hours", 24) * 3600, stats=st)
             finally:
                 close()
+            self._stat("album_dates", albums=len(albums), fetched=st.get("fetched", 0), seconds=round(time.time() - t0, 2))
         shown = [a for a in albums if catalog.matches(a, q)] if q else albums
         ordered = catalog.sort_albums(shown, dates, self.sort)
         page = ordered[offset:offset + self.page_size]
@@ -360,6 +417,7 @@ class Plugin(object):
         if order not in ORDERS:
             order = self.sort
         if flat:  # slideshow: flat list of up to `slideshow_limit` images, no navigation items
+            t_list = time.time()
             limit = s_int("slideshow_limit", 2000)
             items: list = []
             if order == "random":  # successive random draws would overlap: ask for everything at once
@@ -376,6 +434,7 @@ class Plugin(object):
                         break
             items = items[:limit]
             rows, more = pos, False
+            self._stat("slideshow_list", images=len(items), order=order, seconds=round(time.time() - t_list, 2))
         else:
             res = self._photo_query(offset, q, album, self.page_size, order)
             items, rows = res["items"], res["rows"]
@@ -572,7 +631,7 @@ class Plugin(object):
         action = self.params.get("action")
         routes = {None: self.root, "albums": self.albums, "photos": self.photos,
                   "search": self.search, "search_albums": self.search_albums, "play": self.play,
-                  "slideshow": self.slideshow, "slideshow_settings": self.slideshow_settings,
+                  "slideshow": self.slideshow, "slideshow_settings": self.slideshow_settings, "support_info": self.support_info,
                   "clear_cache": self.clear_cache, "test_connection": self.test_connection,
                   "show_log": self.show_log, "clear_log": self.clear_log}
         fn = routes.get(action)
@@ -606,7 +665,7 @@ class Plugin(object):
                 self.run_prefetch()
 
     def _fail(self, action):
-        if action in ("albums", "photos", "search"):
+        if action in ("albums", "photos", "search", "search_albums"):  # every action that builds a directory
             xbmcplugin.endOfDirectory(self.handle, succeeded=False)
         elif action == "play":
             xbmcplugin.setResolvedUrl(self.handle, False, xbmcgui.ListItem())

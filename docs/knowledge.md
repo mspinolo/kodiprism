@@ -171,3 +171,10 @@ Additional doubts raised by the review **[review, unverified]**:
 - **Photo "info".** Kodi 21's picture info tag only accepts date taken and resolution, so nothing else (camera, place) can be passed; the date is also the second label.
 - **Random photos.** One draw of `page_size` images; paging offsets of a random order would overlap, so there is no *Next page*, only *Shuffle again* (`r=<time>` makes the URL differ).
 
+## 12. How the checks are organised (1.2.1) [review]
+- **What each layer can and cannot prove.** `tests/test_addon.py` runs the real add-on code against fake `xbmc*` modules and a fake PhotoPrism: it proves logic, not what Kodi or a real server do. `test_properties.py` (Hypothesis) checks invariants on thousands of generated inputs: it found a real bug (addresses with control characters accepted) on its first run. `test_static.py` checks the package and the translations offline. `make test-zip` runs the functional tests against the unpacked release zip. The real `kodi-addon-checker` only runs in CI (needs internet) and has twice found things the offline checks could not (see section 11).
+- **Mutation checks.** For each important behaviour, break the code on purpose (copy the tree to /tmp, edit one line) and confirm that some test fails; a test that survives is vacuous. Several tests were added or fixed this way. Property tests cover invariants (final state, ordering), deterministic tests cover behaviour over time (e.g. the effect stays off while the slideshow window is open).
+- **Error paths found by the coverage report** rather than by thinking: `search_albums` did not close the directory on failure. Look at `make coverage` output after adding code.
+- **Measurements for bug reports.** `plugin._stat()` stores the latest timing of the album-date load and of the slideshow list in `<profile>/stats.json`; *Support info* prints them.
+- **Not covered by any automatic check:** rendering in a skin, speed on the target hardware, real playback, the real behaviour of PhotoPrism and Kodi (see the *unverified* lists above).
+

@@ -12,8 +12,9 @@ import sys
 import tempfile
 import types
 
-ADDON_DIR = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                          "..", "plugin.image.photoprism"))
+# KODIPRISM_ADDON_DIR lets tools/test_zip.py run the same tests against the unpacked release zip
+ADDON_DIR = os.environ.get("KODIPRISM_ADDON_DIR") or os.path.normpath(os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "plugin.image.photoprism"))
 sys.path.insert(0, ADDON_DIR)
 PROFILE = tempfile.mkdtemp()
 SETTINGS = {"server_url": "", "auth_mode": "0", "username": "admin", "password": "pw", "token": "",
@@ -35,6 +36,10 @@ def mod(n): m = types.ModuleType(n); sys.modules[n] = m; return m
 x = mod("xbmc"); x.LOGDEBUG, x.LOGINFO, x.LOGWARNING, x.LOGERROR = 0, 1, 2, 3
 x.log = lambda m, l=1: LOG["klog"].append((l, m))
 x.executebuiltin = lambda c: LOG["builtin"].append(c)
+x.ENGLISH_NAME = 0
+x.getSkinDir = lambda: "skin.estuary"
+x.getLanguage = lambda *a, **k: "Italian"
+x.getInfoLabel = lambda k: {"System.BuildVersion": "21.2 (test)", "System.OSVersionInfo": "LibreELEC (test)"}.get(k, "")
 x.getCondVisibility = lambda c: ACTIVE["slideshow"] if "slideshow" in c else False
 
 
@@ -79,7 +84,7 @@ class Addon:
         en, tr = _po(LANG["code"]).get(i, ("", ""))
         return tr or en
     def openSettings(s): LOG["opened"].append(1)
-    def getAddonInfo(s, k): return {"id": "plugin.image.photoprism", "name": "PhotoPrism", "profile": PROFILE, "version": "9.9.9"}.get(k, "")
+    def getAddonInfo(s, k): return {"id": "plugin.image.photoprism", "name": "KodiPrism", "profile": PROFILE, "version": "9.9.9"}.get(k, "")
 a.Addon = Addon
 g = mod("xbmcgui"); g.NOTIFICATION_ERROR, g.NOTIFICATION_INFO = "e", "i"
 class LI:

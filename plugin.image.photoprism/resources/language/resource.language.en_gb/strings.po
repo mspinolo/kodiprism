@@ -275,3 +275,7 @@ msgstr ""
 msgctxt "#30136"
 msgid "Check slideshow settings"
 msgstr ""
+
+msgctxt "#30137"
+msgid "Support info (for bug reports)"
+msgstr ""

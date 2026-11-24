@@ -9,3 +9,6 @@ kodi-addon-checker.log
 .DS_Store
 .idea/
 .vscode/
+.coverage
+.coverage.*
+.hypothesis/

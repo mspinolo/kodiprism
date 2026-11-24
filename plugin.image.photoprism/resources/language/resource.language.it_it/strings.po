@@ -275,3 +275,7 @@ msgstr "Nascondi gli album vuoti"
 msgctxt "#30136"
 msgid "Check slideshow settings"
 msgstr "Controlla le impostazioni dello slideshow"
+
+msgctxt "#30137"
+msgid "Support info (for bug reports)"
+msgstr "Informazioni per il supporto (per segnalare problemi)"

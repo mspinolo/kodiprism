@@ -11,7 +11,7 @@ Owner: Michele (`mspinolo`). Target setup: LibreELEC (Omega) 12.2.1 / Kodi 21 ag
 The first version was generated entirely by Claude Opus; the owner made the first commit by hand (the LICENSE).
 
 ## Current status (keep this section honest and up to date)
-- Version **1.2.0** (see `CHANGELOG.md`). License **GPL-3.0** (`LICENSE`, mirrored in `addon.xml`).
+- Version **1.2.1** (see `CHANGELOG.md`). License **GPL-3.0** (`LICENSE`, mirrored in `addon.xml`).
 - Verified in automation: unit/integration tests with mocked `xbmc*` modules against a fake PhotoPrism
   server (`tests/test_addon.py`), offline static checks (`tests/test_static.py`), pyflakes, mypy+Kodistubs.
 - Reported by the previous agent but **not re-verified** by later sessions: `tests/test_live.py` against a real
@@ -36,11 +36,13 @@ Code is small: `api.py` REST client (URL normalisation, error messages), `catalo
 
 ## Commands
 ```
-make test        # tests/test_addon.py + tests/test_static.py
+make test        # tests/test_addon.py + tests/test_properties.py (Hypothesis) + tests/test_static.py
+make test-zip    # builds the zip, unpacks it elsewhere and runs the functional tests against that copy
+make coverage    # same tests under coverage.py, fails below the threshold in the Makefile (needs: pip install coverage hypothesis)
 make lint        # pyflakes + mypy (needs: pip install pyflakes mypy Kodistubs)
 make build       # dist/plugin.image.photoprism-<version>.zip
 make assets      # re-render icon.png/fanart.jpg from assets/*.svg (needs cairosvg, pillow)
-make check       # everything above
+make check       # test, test-zip, lint, build
 ```
 Live test: `PP_URL=http://host:2342 PP_PASS=... PP_APP=<app password> python3 tests/test_live.py`
 (expects an album called "Kodi Test" with 2 photos; recipe to create the server is in `docs/knowledge.md` §6).

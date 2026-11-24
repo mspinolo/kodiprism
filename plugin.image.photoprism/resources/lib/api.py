@@ -33,13 +33,15 @@ def normalize_base_url(url):
     if not raw:
         raise ApiError("Server address is empty - set it in the add-on settings")
     u = raw if "://" in raw else "http://" + raw
-    parts = urlparse(u)
+    if any(c.isspace() or ord(c) < 32 for c in u):
+        raise ApiError("Invalid server address '%s' - it must not contain spaces" % raw.encode("ascii", "replace").decode())
+    try:
+        parts = urlparse(u)
+        parts.port
+    except ValueError:  # e.g. an unbalanced '[' of an IPv6 address, or a non-numeric port
+        raise ApiError("Invalid server address or port '%s' - use the form http://host:2342" % raw)
     if parts.scheme.lower() not in ("http", "https") or not parts.hostname:
         raise ApiError("Invalid server address '%s' - use the form http://host:2342" % raw)
-    try:
-        parts.port
-    except ValueError:
-        raise ApiError("Invalid port in server address '%s'" % raw)
     if parts.username or parts.password:
         raise ApiError("Do not put username/password in the address - use the login fields")
     path = parts.path.rstrip("/")

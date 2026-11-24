@@ -2,6 +2,21 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versions follow `addon.xml`.
 
+## [1.2.1] - 2026-11-24
+### Fixed
+- *Search albums* never closed the directory when the server could not be reached, which can leave Kodi waiting.
+  Every action that builds a directory now fails cleanly.
+- Server addresses with spaces or control characters, or an unbalanced `[`, are rejected with a clear message
+  (they used to be accepted or raised an internal error).
+### Added
+- **Troubleshooting > Support info (for bug reports)**: add-on/Kodi/OS/skin/language, key settings, cache usage,
+  background-service state, the latest album-date and slideshow-list timings and the last log lines, in one
+  block of text with no passwords, tokens or server name.
+- Tests: error paths (session expiring during the album dates, HTML instead of JSON, 403/429/5xx, missing
+  credentials, status page asking for login), property-based tests (Hypothesis) for addresses, search, sorting,
+  log redaction and the pan/zoom state machine, a test of the **unpacked release zip**, and a coverage
+  threshold (95% measured). CI now runs on Python 3.9, 3.11 and 3.13.
+
 ## [1.2.0] - 2026-11-23
 ### Added
 - **Italian translation** (closes #3). Every menu label, prompt and notification now goes through

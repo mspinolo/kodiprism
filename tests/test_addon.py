@@ -21,7 +21,8 @@ ALBUM_DATES.update({"b0": "2008-08-02T10:00:00Z", "b1": "2008-11-23T10:00:00Z", 
                     "b3": "2019-03-10T10:00:00Z", "b4": "2009-12-07T10:00:00Z"})
 HITS = {"session": 0, "photos": 0, "thumb": 0, "album_dates": 0, "albums_params": [], "photos_params": []}
 MANY = [{"UID": "m%d" % i, "Hash": "mh%d" % i, "Title": "Many %d" % i, "Type": "image"} for i in range(1250)]
-MODE = {"slow": False, "expire": False, "big": False, "dates_500": False, "many": False}
+MODE = {"slow": False, "expire": False, "big": False, "dates_500": False, "many": False,
+        "force": None, "status401": False, "expire_on_dates": False}
 class H(BaseHTTPRequestHandler):
     def log_message(s, *a): pass
     def send(s, code, body, ct="application/json"):
@@ -47,7 +48,8 @@ class H(BaseHTTPRequestHandler):
         if u.path.startswith("/api/v1/t/") or "/t/prev/" in u.path:
             HITS["thumb"] += 1
             return s.send(200, b"\xff\xd8JPEG" + u.path.encode(), "image/jpeg") if "/prev/" in u.path else s.send(403, {})
-        if u.path == "/api/v1/status": return s.send(200, {"status": "operational"})
+        if MODE["force"] and u.path == MODE["force"][0]: return s.send(*MODE["force"][1:])   # (path, code, body[, content type])
+        if u.path == "/api/v1/status": return s.send(401, {}) if MODE["status401"] else s.send(200, {"status": "operational"})
         if not s.authed(): return s.send(401, {"error": "Unauthorized"})
         if u.path == "/api/v1/config": return s.send(200, {"previewToken": "prev", "downloadToken": "dl", "version": "test-1.2"})
         off, cnt = int(q.get("offset", 0)), int(q.get("count", 10))
@@ -56,6 +58,9 @@ class H(BaseHTTPRequestHandler):
             return s.send(200, (BIG if MODE["big"] else ALBUMS)[off:off + cnt])
         if u.path == "/api/v1/photos" and q.get("s") and cnt == 1:      # "newest photo of this album"
             HITS["album_dates"] += 1
+            if MODE["expire_on_dates"]:      # the session dies while the album dates are being read
+                MODE["expire_on_dates"] = False; MODE["expire"] = True
+                return s.send(401, {"error": "Unauthorized"})
             if MODE["dates_500"]: return s.send(500, {"error": "boom"})
             d = ALBUM_DATES.get(q["s"], "")
             return s.send(200, [{"Hash": "x", "TakenAt": d}] if d else [])
@@ -295,7 +300,7 @@ def fresh(**kw):
     opts = dict(cache_path=tempfile.mkdtemp(), page_size="60", sort_order="0", slideshow_limit="2000")
     opts.update(kw)
     reset(**opts)
-    MODE.update(big=True, dates_500=False, many=False)
+    MODE.update(big=True, dates_500=False, many=False, force=None, status401=False, expire_on_dates=False)
     HITS["album_dates"] = 0; HITS["albums_params"].clear(); HITS["photos_params"].clear()
     KBCFG.update(text="label:cat", ok=True); SELECT["value"] = 0
 
@@ -535,5 +540,61 @@ first(); run(""); check(LOG["yesno"] == [] and len(LOG["items"]) == 14, "configu
 fresh(hide_empty_albums="true"); run("?action=albums&type=album")
 check("Vuoto (0)" not in labels() and "Senza data (5)" in labels() and len(labels()) == 7 and HITS["album_dates"] == 6, "hide empty albums: 'Vuoto (0)' is gone, others stay")
 fresh(hide_empty_albums="false"); run("?action=albums&type=album"); check("Vuoto (0)" in labels(), "hide empty albums off: empty albums are listed (last)")
+
+# ---- 1.2.1: error paths a real user can hit ----
+def notes(): return " | ".join(LOG["notes"])
+
+# the session dies while album dates are being read: log in again and finish the listing
+fresh(); MODE["expire_on_dates"] = True; HITS["session"] = 0; run("?action=albums&type=album")
+check(HITS["session"] == 2 and labels()[1] == "Città di Roma (22)" and LOG["end"] == [True], "session expiring during the date lookups -> automatic re-login, complete newest-first list")
+
+# unexpected answers from the server or from something in front of it
+fresh(); MODE["force"] = ("/api/v1/albums", 200, b"<html><body>Please log in to the proxy</body></html>", "text/html"); run("?action=albums&type=album")
+check("Invalid JSON from server" in notes() and LOG["end"] == [False] and "non-JSON body" in read_log(), "an HTML page instead of JSON (proxy login page) -> clear message, directory closed as failed")
+for code, text in ((403, "Access denied (403)"), (429, "Too many requests (429)"), (418, "HTTP 418 for /photos"), (503, "Server error (HTTP 503)")):
+    fresh(); MODE["force"] = ("/api/v1/photos", code, {"error": "x"}); run("?action=photos")
+    check(text in notes() and LOG["end"] == [False], "HTTP %d on photos -> '%s'" % (code, text))
+
+# settings not filled in
+fresh(auth_mode="1", token=""); run("?action=albums&type=album"); check("Enter an app password" in notes() and LOG["end"] == [False], "app-password mode without token -> message")
+fresh(username=""); run("?action=albums&type=album"); check("Enter username and password" in notes() and LOG["end"] == [False], "password mode without username -> message")
+fresh(server_url=""); run("?action=albums&type=album"); check("Set the PhotoPrism URL" in notes() and LOG["end"] == [False], "no server address -> message")
+
+# test-connection variants
+fresh(); MODE["status401"] = True; run("?action=test_connection"); txt = LOG["text"][-1][1]
+check("its status page asks for a login" in txt and "All checks passed" in txt, "test connection: status page needs a login -> still counted as reachable")
+fresh(auth_mode="1", token="app-pass"); run("?action=test_connection"); txt = LOG["text"][-1][1]
+check("App password / access token accepted" in txt and "All checks passed" in txt and "[FAIL]" not in txt, "test connection with an app password")
+
+# a failing network during 'Search albums' must still close the directory (this used to hang Kodi's spinner)
+fresh(server_url="127.0.0.1:%d" % DEAD); KBCFG["text"] = "x"; run("?action=search_albums")
+check(LOG["end"] == [False] and "Connection refused" in notes(), "search albums with the server down -> notification and directory closed as failed")
+fresh(); KBCFG["ok"] = False; run("?action=search"); check(LOG["end"] == [False] and labels() == [], "photo search cancelled -> directory closed as failed")
+fresh(); run("?action=play"); check(LOG["resolved"] and LOG["resolved"][-1][0] is False and "Unexpected error" in notes(), "play without a video hash -> failed resolve + notification, no crash")
+fresh(); run("?action=nonsense"); check("Unknown action" in read_log() and LOG["end"] == [], "unknown action is logged and ignored")
+
+# 'Next page' of an album search keeps the query; original-size images use the download endpoint
+fresh(page_size="2"); run("?action=albums&type=album&q=a")
+check("q=a" in LOG["items"][-1][1] and "offset=2" in LOG["items"][-1][1], "search results spread over pages keep the query in 'Next page'")
+fresh(full_size="original"); run("?action=photos")
+check(any("/api/v1/dl/h0?t=dl" in i[1] for i in LOG["items"]), "full size 'original' uses the download endpoint")
+
+# low-level robustness
+check(fx.get_value(lambda raw: "not json at all") is None and fx.set_value(lambda raw: "{}", False) is False, "JSON-RPC garbage answers are handled")
+
+# ---- Support info (for bug reports) ----
+STATS = os.path.join(PROFILE, "stats.json")
+if os.path.exists(STATS): os.remove(STATS)
+fresh(password="S3cretPassw0rd", token="tok-xyz-123"); run("?action=support_info"); txt = LOG["text"][-1][1]
+check("(none yet" in txt and "Last log lines:" in txt, "support info before any measurement says so")
+run("?action=albums&type=album"); run("?action=photos&slideshow=1&order=newest&q=type%3Aimage"); run("?action=support_info"); txt = LOG["text"][-1][1]
+check("Add-on: KodiPrism 9.9.9 (plugin.image.photoprism)" in txt
+      and "Kodi: 21.2 (test) | OS: LibreELEC (test) | Skin: skin.estuary | Language: Italian" in txt
+      and "Server: http://<host hidden>:%d" % srv.server_port in txt and "login: username/password" in txt
+      and "sort=newest" in txt and "Background service: NOT running" in txt, "support info: versions, skin, language, settings, service state")
+check("album_dates: albums=7, at=" in txt and "fetched=6" in txt and "slideshow_list: at=" in txt and "images=4" in txt and "order=newest" in txt,
+      "support info: latest album-date load and slideshow list timings")
+check("files," in txt and " MB used" in txt, "support info: cache usage")
+check(not any(x in txt for x in ("S3cretPassw0rd", "tok-xyz-123", "127.0.0.1", "sess-tok")), "support info never contains a secret or the server name")
 
 srv.shutdown(); print("ALL %d CHECKS PASSED" % ok)

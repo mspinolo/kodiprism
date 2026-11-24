@@ -148,6 +148,11 @@
           <constraints><allowempty>true</allowempty></constraints>
           <control type="button" format="action"/>
         </setting>
+        <setting id="support_info" type="action" label="30137">
+          <level>0</level><data>RunPlugin(plugin://plugin.image.photoprism/?action=support_info)</data>
+          <constraints><allowempty>true</allowempty></constraints>
+          <control type="button" format="action"/>
+        </setting>
         <setting id="clear_log" type="action" label="30064">
           <level>0</level><data>RunPlugin(plugin://plugin.image.photoprism/?action=clear_log)</data>
           <constraints><allowempty>true</allowempty></constraints>
