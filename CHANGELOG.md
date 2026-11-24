@@ -16,6 +16,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versions follow
   2100 photos, 100 albums, a request for 2000 photos and the cold/warm album catalogue timings against a real
   PhotoPrism. Tests for the three fixes (162 checks).
 
+### Changed
+- CI/release/live workflows use `actions/checkout@v6`, `setup-python@v6` and `upload-artifact@v6` (Node 24; the
+  Node 20 deprecation warning is gone). `release.yml` can also be started by hand from the Actions tab.
+
 ## [1.2.1] - 2026-11-24
 ### Fixed
 - *Search albums* never closed the directory when the server could not be reached, which can leave Kodi waiting.
