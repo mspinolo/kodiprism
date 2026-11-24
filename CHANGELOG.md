@@ -15,7 +15,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/). Versions follow
 - Tests: error paths (session expiring during the album dates, HTML instead of JSON, 403/429/5xx, missing
   credentials, status page asking for login), property-based tests (Hypothesis) for addresses, search, sorting,
   log redaction and the pan/zoom state machine, a test of the **unpacked release zip**, and a coverage
-  threshold (95% measured). CI now runs on Python 3.9, 3.11 and 3.13.
+  threshold (95% measured). CI now runs on Python 3.8, 3.11 and 3.13.
 
 ## [1.2.0] - 2026-11-23
 ### Added
