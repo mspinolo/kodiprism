@@ -12,6 +12,10 @@ class ApiError(Exception):
     pass
 
 
+class ForbiddenError(ApiError):
+    """HTTP 403: logged in, but not allowed (e.g. an app password with too narrow a scope). Never retried."""
+
+
 class AuthError(ApiError):
     pass
 
@@ -118,7 +122,7 @@ class PhotoPrism(object):
         if r.status_code == 401:
             raise AuthError("Authentication failed (401) - check username/password or app password")
         if r.status_code == 403:
-            raise AuthError("Access denied (403) - check the account permissions / app password scope")
+            raise ForbiddenError("Access denied (403) - check the account permissions / app password scope")
         if r.status_code == 404:
             raise ApiError("Not found (404) for %s - is %s really PhotoPrism (not a proxy path)?"
                            % (path, urlparse(self.base).netloc))

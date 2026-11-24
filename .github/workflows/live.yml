@@ -1,0 +1,58 @@
+name: live-photoprism
+# Runs the add-on's API client against a REAL PhotoPrism (official Docker image) with photos of known dates.
+# Not part of the normal CI and never blocks a merge: manual (workflow_dispatch) and weekly (Mondays).
+# The report is printed as annotations 'live-report-NN' (gzip + base64) because logs cannot be downloaded from the sandbox.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * 1"
+permissions:
+  contents: read
+jobs:
+  live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests pillow piexif
+      - name: Create test photos
+        run: python3 tools/make_test_photos.py /tmp/pp/originals
+      - name: Start PhotoPrism
+        run: |
+          mkdir -p /tmp/pp/storage
+          docker run -d --name pp -p 2342:2342 \
+            -e PHOTOPRISM_ADMIN_USER=admin -e PHOTOPRISM_ADMIN_PASSWORD=ci-test-password-1 \
+            -e PHOTOPRISM_SITE_URL=http://127.0.0.1:2342/ -e PHOTOPRISM_DEFAULT_LOCALE=en \
+            -e PHOTOPRISM_DISABLE_TENSORFLOW=true -e PHOTOPRISM_DISABLE_FACES=true -e PHOTOPRISM_DISABLE_CLASSIFICATION=true \
+            -v /tmp/pp/originals:/photoprism/originals -v /tmp/pp/storage:/photoprism/storage \
+            photoprism/photoprism:latest
+          for i in $(seq 1 90); do
+            if curl -sf http://127.0.0.1:2342/api/v1/status > /dev/null; then echo "ready after $i tries"; break; fi
+            sleep 3
+          done
+          curl -s http://127.0.0.1:2342/api/v1/status; echo
+      - name: Index the photos
+        run: docker exec pp photoprism index
+      - name: Probe the server
+        run: PP_URL=http://127.0.0.1:2342 PP_PASS=ci-test-password-1 python3 tests/live_probe.py /tmp/report.json
+      - name: Scale test (2100 photos, 100 albums)
+        continue-on-error: true
+        run: |
+          python3 tools/make_test_photos.py --bulk 2100 /tmp/pp/originals
+          docker exec pp photoprism index
+          PP_URL=http://127.0.0.1:2342 PP_PASS=ci-test-password-1 python3 tests/live_scale.py /tmp/scale.json
+      - name: Publish report as annotations
+        if: always()
+        run: |
+          { echo "== probe report"; cat /tmp/report.json 2>/dev/null || echo "(no report)"; echo; echo "== scale report"; cat /tmp/scale.json 2>/dev/null || echo "(no scale report)"; echo; echo "== docker ps"; docker ps -a --format '{{.Names}} {{.Status}}'; echo "== PhotoPrism log (tail)"; docker logs pp 2>&1 | tail -30; } > /tmp/annot.txt
+          python3 - <<'PY'
+          import base64, gzip
+          raw = open('/tmp/annot.txt', 'rb').read()
+          b = base64.b64encode(gzip.compress(raw, 9)).decode()
+          chunks = [b[i:i + 3500] for i in range(0, len(b), 3500)]
+          for n, c in enumerate(chunks[:14]):
+              print('::notice title=live-report-%02d::%s' % (n, c))
+          PY

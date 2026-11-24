@@ -53,12 +53,12 @@ class DiskCache(object):
     def _path(self, kind, key, ext=""):
         return os.path.join(self.root, kind, self._key(key) + ext)
 
-    def _fresh(self, path):
+    def _fresh(self, path, max_age=None):
         try:
             st = os.stat(path)
         except OSError:
             return False
-        if time.time() - st.st_mtime > self.ttl:
+        if time.time() - st.st_mtime > (self.ttl if max_age is None else min(self.ttl, max_age)):
             try:
                 os.remove(path)
             except OSError:
@@ -84,11 +84,11 @@ class DiskCache(object):
         os.utime(path, (now, now))
 
     # --- metadata ---
-    def get_json(self, key):
+    def get_json(self, key, max_age=None):
         if not self.enabled:
             return None
         p = self._path("meta", key, ".json")
-        if not self._fresh(p):
+        if not self._fresh(p, max_age):
             return None
         try:
             with open(p, "rb") as fh:

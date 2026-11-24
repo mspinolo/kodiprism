@@ -190,3 +190,11 @@ Run: GitHub Actions workflow `live.yml` (branch `live-probe`), official Docker i
 - `public=true` **hides Private photos** (9 of 10); without it the authenticated user sees them (10). `private:true` lists only the private ones.
 - `merged=true` makes no difference with no stacks. Large `count` values (500/2000/100000) are accepted (only 10 photos, so the real cap is not measured).
 - Still open: HTTP 403 vs 401 for a too-narrow app-password scope, `count` cap, behaviour with ~100 albums and thousands of photos, everything that needs a real Kodi.
+
+## 14. Release 1.2.2: behaviours chosen without a real Kodi [review]
+- **Action items in a list.** *Slideshow* and *Clear cache* are `isFolder=True` items; their handler ends with `endOfDirectory(handle, succeeded=False, cacheToDisc=False)` when the handle is >= 0 (picked from a list), and does nothing for `RunPlugin` (handle -1). Rationale: a non-folder, non-playable item without `setResolvedUrl` can leave Kodi waiting. **Unverified in real Kodi:** that `succeeded=False` leaves the list in place without a message.
+- **403** raises `ForbiddenError` (an `ApiError`, not an `AuthError`), so it is shown once and never triggers the login retry. Real PhotoPrism wording for a too-narrow app-password scope is still unknown.
+- **Listing lifetime.** `cached_call(..., max_age=LISTING_MAX_AGE)` (600 s) is passed to `DiskCache.get_json`; the effective lifetime is `min(cache TTL, max_age)`. Thumbnails are not affected.
+- **Tokens in logs** were already masked by `logger.py` (exact secrets and URL shapes); what Kodi itself writes to `kodi.log` when it loads an image URL cannot be masked from the add-on.
+- **Scale probe** (`tests/live_scale.py`, step of `live.yml`): results go to annotations `live-report-NN` like the first probe. Record them here once read.
+

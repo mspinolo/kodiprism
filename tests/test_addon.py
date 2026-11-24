@@ -555,6 +555,34 @@ for code, text in ((403, "Access denied (403)"), (429, "Too many requests (429)"
     fresh(); MODE["force"] = ("/api/v1/photos", code, {"error": "x"}); run("?action=photos")
     check(text in notes() and LOG["end"] == [False], "HTTP %d on photos -> '%s'" % (code, text))
 
+# 1.2.2: 403 means "not allowed", not "log in again"
+fresh(); MODE["force"] = ("/api/v1/photos", 403, {"error": "x"}); HITS["session"] = 0; run("?action=photos")
+check(HITS["session"] == 1 and "Access denied (403)" in notes() and LOG["end"] == [False], "403 -> message, no second login attempt")
+fresh(); MODE["force"] = ("/api/v1/photos", 401, {"error": "x"}); HITS["session"] = 0; run("?action=photos")
+check(HITS["session"] == 2, "401 still triggers one transparent re-login")
+
+# 1.2.2: action items in a list must close the list (no endless spinner in Kodi); RunPlugin (handle -1) must not
+def run_h(qs, handle):
+    for k in LOG: LOG[k].clear()
+    plugin.run(["plugin://plugin.image.photoprism/", str(handle), qs])
+fresh(); run_h("?action=clear_cache", 7); check(LOG["end"] == [False], "'Clear cache' picked from a list closes it as failed (Kodi stays on the list)")
+fresh(); run_h("?action=clear_cache", -1); check(LOG["end"] == [], "'Clear cache' via RunPlugin (handle -1) touches no directory")
+fresh(); SELECT["value"] = 0; run_h("?action=slideshow", 7)
+check(LOG["end"] == [False] and "SlideShow(" in LOG["builtin"][0], "'Slideshow' picked from a list starts it and closes the list")
+fresh(); SELECT["value"] = -1; run_h("?action=slideshow", 7); check(LOG["end"] == [False] and LOG["builtin"] == [], "cancelled slideshow still closes the list")
+fresh(); run(""); check(len(LOG["items"]) == 14 and all(i[3] for i in LOG["items"]), "every root item is a folder (Slideshow / Clear cache included)")
+
+# 1.2.2: listings are re-read after 10 minutes even with a 24 h cache lifetime
+d = tempfile.mkdtemp(); c = cache.DiskCache(d, max_mb=10, ttl_hours=24)
+c.set_json("L", {"a": 1}); pth = c._path("meta", "L", ".json")
+os.utime(pth, (time.time(), time.time() - 300)); check(c.get_json("L", 600) == {"a": 1}, "listing 5 min old is still served")
+os.utime(pth, (time.time(), time.time() - 700)); check(c.get_json("L", 600) is None, "listing 12 min old is read again")
+c.set_json("L", {"a": 1}); os.utime(pth, (time.time(), time.time() - 700)); check(c.get_json("L") == {"a": 1}, "without max_age the normal lifetime applies")
+fresh(); run("?action=photos"); n = HITS["photos"]
+for f in os.listdir(os.path.join(SETTINGS["cache_path"], "photoprism_cache", "meta")):
+    q = os.path.join(SETTINGS["cache_path"], "photoprism_cache", "meta", f); os.utime(q, (time.time(), time.time() - 700))
+run("?action=photos"); check(HITS["photos"] > n, "photo listing older than 10 min is fetched again by the add-on")
+
 # settings not filled in
 fresh(auth_mode="1", token=""); run("?action=albums&type=album"); check("Enter an app password" in notes() and LOG["end"] == [False], "app-password mode without token -> message")
 fresh(username=""); run("?action=albums&type=album"); check("Enter username and password" in notes() and LOG["end"] == [False], "password mode without username -> message")
