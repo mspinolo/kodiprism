@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addons>
+<addon id="plugin.image.photoprism" name="KodiPrism" version="1.3.0" provider-name="kodi-photoprism">
+  <requires>
+    <import addon="xbmc.python" version="3.0.1"/>
+    <import addon="script.module.requests" version="2.22.0"/>
+  </requires>
+  <extension point="xbmc.python.pluginsource" library="default.py">
+    <provides>image video</provides>
+  </extension>
+  <extension point="xbmc.service" library="service.py"/>
+  <extension point="xbmc.addon.metadata">
+    <summary lang="en_GB">Kodi add-on for PhotoPrism: browse albums, photos and videos</summary>
+    <description lang="en_GB">Kodi add-on for PhotoPrism. Browse the albums, timeline, photos and videos of your own PhotoPrism server, search albums, search with PhotoPrism query syntax, run slideshows (newest, oldest or random first) and play videos, with on-disk caching. Not affiliated with or endorsed by PhotoPrism.</description>
+    <news>1.3.0: KodiPrism now has its own Kodi repository, so updates install automatically. See CHANGELOG.md.</news>
+    <platform>all</platform>
+    <license>GPL-3.0-only</license>
+    <website>https://github.com/mspinolo/kodiprism</website>
+    <source>https://github.com/mspinolo/kodiprism</source>
+    <assets>
+      <icon>resources/icon.png</icon>
+      <fanart>resources/fanart.jpg</fanart>
+    </assets>
+  </extension>
+</addon>
+<addon id="repository.kodiprism" name="KodiPrism repository" version="1.0.0" provider-name="mspinolo">
+  <extension point="xbmc.addon.repository" name="KodiPrism repository">
+    <dir>
+      <info compressed="false">https://raw.githubusercontent.com/mspinolo/kodiprism/repo/addons.xml</info>
+      <checksum>https://raw.githubusercontent.com/mspinolo/kodiprism/repo/addons.xml.md5</checksum>
+      <datadir zip="true">https://raw.githubusercontent.com/mspinolo/kodiprism/repo/</datadir>
+    </dir>
+  </extension>
+  <extension point="xbmc.addon.metadata">
+    <summary lang="en_GB">Updates for KodiPrism, the Kodi add-on for PhotoPrism</summary>
+    <summary lang="it_IT">Aggiornamenti di KodiPrism, l'add-on Kodi per PhotoPrism</summary>
+    <description lang="en_GB">Install this once: Kodi then installs KodiPrism from here and keeps it up to date automatically. Not affiliated with or endorsed by PhotoPrism.</description>
+    <description lang="it_IT">Da installare una volta sola: poi Kodi installa KodiPrism da qui e lo aggiorna automaticamente. Non affiliato a PhotoPrism né approvato da PhotoPrism.</description>
+    <platform>all</platform>
+    <license>GPL-3.0-only</license>
+    <website>https://github.com/mspinolo/kodiprism</website>
+    <source>https://github.com/mspinolo/kodiprism</source>
+    <assets>
+      <icon>icon.png</icon>
+      <fanart>fanart.jpg</fanart>
+    </assets>
+  </extension>
+</addon>
+</addons>
