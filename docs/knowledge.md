@@ -117,7 +117,7 @@ docker exec pp photoprism index --cleanup
 4. Deprecated `ListItem.setInfo` (logs warnings in Omega).
 
 ### Bugs found by code review, fixed in 1.0.1 [review]
-Each has a regression test in `tests/test_addon.py`.
+Each has a regression test (now `tests/test_regressions.py`).
 5. `_auth_fingerprint` used the builtin `hash()`. Python salts `str` hashes per interpreter start, so the stored fingerprint never matched after a Kodi restart and the add-on logged in again every time. Use `hashlib.sha256`.
 6. `session.json` was written with `open(..., "w")` and then `chmod 600`, leaving a window with default permissions. Create it with `os.open(..., 0o600)`.
 7. `DiskCache.evict()` treated any path containing `.tmp` as a leftover temp file, so a cache folder such as `/x/.tmpcache` had all its files deleted on every eviction. Match on the file name only.
@@ -172,7 +172,7 @@ Additional doubts raised by the review **[review, unverified]**:
 - **Random photos.** One draw of `page_size` images; paging offsets of a random order would overlap, so there is no *Next page*, only *Shuffle again* (`r=<time>` makes the URL differ).
 
 ## 12. How the checks are organised (1.2.1) [review]
-- **What each layer can and cannot prove.** `tests/test_addon.py` runs the real add-on code against fake `xbmc*` modules and a fake PhotoPrism: it proves logic, not what Kodi or a real server do. `test_properties.py` (Hypothesis) checks invariants on thousands of generated inputs: it found a real bug (addresses with control characters accepted) on its first run. `test_static.py` checks the package and the translations offline. `make test-zip` runs the functional tests against the unpacked release zip. The real `kodi-addon-checker` only runs in CI (needs internet) and has twice found things the offline checks could not (see section 11).
+- **What each layer can and cannot prove.** The pytest functional tests (`tests/test_*.py`, fakes in `tests/support.py`) run the real add-on code against fake `xbmc*` modules and a fake PhotoPrism: they prove logic, not what Kodi or a real server do. `test_properties.py` (Hypothesis) checks invariants on thousands of generated inputs: it found a real bug (addresses with control characters accepted) on its first run. `test_static.py` checks the package and the translations offline. `make test-zip` runs the functional tests against the unpacked release zip. The real `kodi-addon-checker` only runs in CI (needs internet) and has twice found things the offline checks could not (see section 11).
 - **Mutation checks.** For each important behaviour, break the code on purpose (copy the tree to /tmp, edit one line) and confirm that some test fails; a test that survives is vacuous. Several tests were added or fixed this way. Property tests cover invariants (final state, ordering), deterministic tests cover behaviour over time (e.g. the effect stays off while the slideshow window is open).
 - **Error paths found by the coverage report** rather than by thinking: `search_albums` did not close the directory on failure. Look at `make coverage` output after adding code.
 - **Measurements for bug reports.** `plugin._stat()` stores the latest timing of the album-date load and of the slideshow list in `<profile>/stats.json`; *Support info* prints them.
@@ -199,3 +199,10 @@ Run: GitHub Actions workflow `live.yml` (branch `live-probe`), official Docker i
 - **Scale probe** (`tests/live_scale.py`, step of `live.yml`) [verified, 2026-11-24, real PhotoPrism in CI]: 2110 photos, 105 albums. `count=2000` is accepted (0.2 s) and strictly newest first; `oldest` and `random` too; `count=5000` returns all 2110 (no lower cap seen). Catalogue of 104 non-empty albums: cold 0.09 s, warm 0 requests; all 100 dates correct. These are CI/loopback timings, not LibreELEC over Wi-Fi.
 ## 15. Releasing from a sandboxed session [verified]
 Cloud agent sessions can push branches and open/merge PRs, but `git push origin vX.Y.Z` gets HTTP 403 from the session proxy and the API refuses to create tags or releases ("not permitted for this session type"); the owner's fine-grained token is irrelevant because the proxy decides. Hence `release.yml` can also be started by hand (Actions > Release > Run workflow on `main`): it reads the version from `addon.xml`, refuses if that tag or release already exists, runs the tests and creates the release (and tag) with the zip.
+
+## 16. Tests on pytest (from 1.3.0) [verified]
+- The former single script `tests/test_addon.py` (158 checks run top to bottom, each section inheriting the state left by the previous one) is split into 50 pytest functions over six files, one per former section. The checks themselves are unchanged (same `check(cond, message)` calls, 158 of them).
+- `tests/conftest.py` resets everything before each test: add-on settings, fake-server modes and counters, fake Kodi settings, dialogs, language, Home-window properties, the profile files and the profile cache. Pitfall found during the move: with an empty *cache folder* setting the cache lives in `<profile>/cache`, not `photoprism_cache`; forgetting it made the cover test pass or fail depending on test order.
+- Independence is proven, not assumed: each test run alone in its own process (50/50) and 15 shuffled orders (`KODIPRISM_SHUFFLE=<seed>`) all pass. Two deliberately injected bugs (10-minute listing age -> 100, 403 raised as AuthError) were each caught by exactly one failing test.
+- `make test-zip` runs the same pytest suite (minus the static checks, which read the source tree) against the unpacked release zip via `KODIPRISM_ADDON_DIR`.
+
