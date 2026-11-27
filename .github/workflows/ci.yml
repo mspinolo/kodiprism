@@ -44,8 +44,11 @@ jobs:
       - name: Kodi add-on checker (Omega), add-on and repository add-on
         run: |
           mkdir -p /tmp/check && for z in dist/*.zip; do unzip -q "$z" -d /tmp/check; done
-          kodi-addon-checker --branch omega /tmp/check/plugin.image.photoprism
-          kodi-addon-checker --branch omega /tmp/check/repository.kodiprism
+          # the checker downloads the official add-on lists from github.com; a timeout there makes it crash
+          # ('Repository' object has no attribute 'addons'), so each check gets up to 3 attempts
+          check() { for i in 1 2 3; do kodi-addon-checker --branch omega "$1" && return 0; echo "::warning::checker attempt $i on $1 failed"; sleep 20; done; return 1; }
+          check /tmp/check/plugin.image.photoprism
+          check /tmp/check/repository.kodiprism
       - name: Repository content (what the repo branch would serve)
         run: python3 tools/build_repo.py dist/repo dist/*.zip
       - uses: actions/upload-artifact@v6
