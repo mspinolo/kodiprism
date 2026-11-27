@@ -20,6 +20,12 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+      - name: No branch may be called repo/... (git cannot have both 'repo' and 'repo/x')
+        run: |
+          clash=$(git ls-remote --heads origin 'refs/heads/repo/*' | sed 's#.*refs/heads/##')
+          if [ -n "$clash" ]; then
+            echo "::error::Delete these branches first (they block the 'repo' branch): $clash"; exit 1
+          fi
       - name: Download the newest released add-on zip
         env:
           GH_TOKEN: ${{ github.token }}

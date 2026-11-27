@@ -68,6 +68,7 @@ Live test: `PP_URL=http://host:2342 PP_PASS=... PP_APP=<app password> python3 te
 - Work on a branch and open a PR. Release: Actions > Release > Run workflow on `main` (cloud agent sessions cannot push
   tags, see knowledge.md §15) or push a tag `vX.Y.Z` matching `addon.xml`; either way the Kodi repository is rebuilt.
   Change `repository.kodiprism/` only with a version bump of its addon.xml, then run *Kodi repository* by hand.
+  Never name a branch `repo/...`: it blocks the `repo` branch the Kodi repository is served from.
 - When you learn or verify something non-obvious, record it in `docs/knowledge.md` and mark it
   `[verified]` only if you ran it yourself.
 
