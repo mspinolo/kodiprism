@@ -35,4 +35,11 @@ jobs:
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ steps.tag.outputs.tag }}" dist/*.zip --title "${{ steps.tag.outputs.tag }}" --generate-notes --target "$GITHUB_SHA"
+        run: gh release create "${{ steps.tag.outputs.tag }}" dist/plugin.image.photoprism-*.zip --title "${{ steps.tag.outputs.tag }}" --generate-notes --target "$GITHUB_SHA"
+
+  repository:
+    # then publish the new version in the Kodi repository (repo branch), so installed copies update by themselves
+    needs: release
+    uses: ./.github/workflows/repo.yml
+    permissions:
+      contents: write

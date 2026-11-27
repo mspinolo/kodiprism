@@ -1,0 +1,51 @@
+name: Kodi repository
+# Publishes the Kodi repository on the `repo` branch, served by raw.githubusercontent.com (no GitHub Pages needed):
+# the newest *released* add-on zip plus the repository add-on from main. release.yml calls it after every release;
+# it can also be run by hand (Actions > Kodi repository > Run workflow), e.g. after changing repository.kodiprism.
+on:
+  workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: write
+concurrency:
+  group: kodi-repository
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Download the newest released add-on zip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(gh release view --json tagName -q .tagName)
+          mkdir -p dist/released
+          gh release download "$tag" --pattern 'plugin.image.photoprism-*.zip' --dir dist/released
+          ls dist/released
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+      - name: Build the repository add-on and the repository content
+        run: |
+          python3 tools/build_zip.py repository.kodiprism
+          python3 tools/build_repo.py dist/repo dist/released/*.zip dist/repository.kodiprism-*.zip
+          cat dist/repo/addons.xml.md5; echo
+      - name: Attach the repository add-on to the release (for the first install)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" dist/repository.kodiprism-*.zip --clobber
+      - name: Publish on the repo branch (one commit, replaced every time)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dist/repo
+          git init -q -b repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Kodi repository for $TAG"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" repo

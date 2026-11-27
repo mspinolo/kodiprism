@@ -11,28 +11,30 @@ Owner: Michele (`mspinolo`). Target setup: LibreELEC (Omega) 12.2.1 / Kodi 21 ag
 The first version was generated entirely by Claude Opus; the owner made the first commit by hand (the LICENSE).
 
 ## Current status (keep this section honest and up to date)
-- Version **1.2.2** (see `CHANGELOG.md`). License **GPL-3.0** (`LICENSE`, mirrored in `addon.xml`).
+- Version **1.3.0** (see `CHANGELOG.md`); repository add-on `repository.kodiprism` 1.0.0. License **GPL-3.0** (`LICENSE`, mirrored in `addon.xml`).
 - Verified in automation: unit/integration tests with mocked `xbmc*` modules against a fake PhotoPrism
   server (pytest: `tests/test_*.py`, shared code in `tests/support.py`, state reset in `tests/conftest.py`), offline static
   checks (`tests/test_static.py`), Hypothesis properties, pyflakes, mypy+Kodistubs.
 - Reported by the previous agent but **not re-verified** by later sessions: `tests/test_live.py` against a real
   PhotoPrism Docker container (needs `PP_PASS`, `PP_APP`, `PP_URL`).
-- **Real Kodi:** the owner confirmed (1.0.2, LibreELEC/Kodi 21) that connection and browsing work and photos
-  display. Album covers were missing (fixed in 1.0.3, to be confirmed). Slideshow over a plugin list, the new
-  1.1.0 features, video playback and prefetch thread behaviour are still unconfirmed in real Kodi.
+- **Real Kodi:** the owner confirmed 1.2.2 on LibreELEC/Kodi 21 "works as expected": album covers show and loading
+  is fast (2026-11-27). Installing/updating through the Kodi repository (1.3.0) is not yet confirmed in real Kodi.
 - `kodi-addon-checker` needs internet (it downloads the official add-on list), so it runs in CI
   (`.github/workflows/ci.yml`), not in offline sandboxes. Check the CI result before claiming it passes.
 
 ## Repository map
 ```
 plugin.image.photoprism/   the add-on exactly as Kodi sees it (this folder is what gets zipped)
+repository.kodiprism/      the repository add-on (addon.xml pointing at the `repo` branch, icon, fanart)
   addon.xml  default.py  resources/{settings.xml,icon.png,fanart.jpg,language/,lib/{api,cache,plugin}.py}
 tests/                     kodi_mocks.py (fake xbmc) · support.py (fake PhotoPrism, helpers) · conftest.py · test_*.py
                            (pytest) · test_live.py / live_probe.py / live_scale.py (real server only, not collected)
-tools/                     build_zip.py (-> dist/, gitignored) · render_assets.py (assets/*.svg -> icon/fanart)
+tools/                     build_zip.py [folder] (-> dist/, gitignored) · build_repo.py (repo branch content) ·
+                           test_zip.py · render_assets.py (assets/*.svg -> icon/fanart)
 assets/                    icon.svg, fanart.svg — sources of the generated artwork
 docs/knowledge.md          API facts, Kodi patterns, design decisions, testing recipes, known bugs
 .github/workflows/         ci.yml (every push/PR) · release.yml (tag vX.Y.Z -> GitHub Release with the zip)
+                           repo.yml (Kodi repository -> `repo` branch; called by release.yml, also manual)
                            live.yml (real PhotoPrism in Docker; manual + weekly, never blocking; report in annotations)
 ```
 Code is small: `api.py` REST client (URL normalisation, error messages), `catalog.py` album search/sort/last-photo dates, `slideshow_fx.py` + `service.py` pan/zoom guard, `cache.py` TTL+LRU disk cache, `logger.py` logging with secret masking, `plugin.py` routing/UI.
@@ -43,9 +45,10 @@ make test        # pytest: functional tests + Hypothesis properties + static che
 make test-zip    # builds the zip, unpacks it elsewhere and runs the functional tests against that copy
 make coverage    # same tests under coverage.py, fails below the threshold in the Makefile (needs: pip install coverage hypothesis)
 make lint        # pyflakes + mypy (needs: pip install pyflakes mypy Kodistubs)
-make build       # dist/plugin.image.photoprism-<version>.zip
+make build       # dist/plugin.image.photoprism-<version>.zip and dist/repository.kodiprism-<version>.zip
+make repo        # dist/repo: what the `repo` branch serves (addons.xml, md5, zips, artwork)
 make assets      # re-render icon.png/fanart.jpg from assets/*.svg (needs cairosvg, pillow)
-make check       # test, test-zip, lint, build
+make check       # test, test-zip, lint, repo
 ```
 Live test: `PP_URL=http://host:2342 PP_PASS=... PP_APP=<app password> python3 tests/test_live.py`
 (expects an album called "Kodi Test" with 2 photos; recipe to create the server is in `docs/knowledge.md` §6).
@@ -62,7 +65,9 @@ Live test: `PP_URL=http://host:2342 PP_PASS=... PP_APP=<app password> python3 te
 - Log only through `self.log` (`AddonLog`), never `xbmc.log` directly; register any new secret with `add_secret()`. Tests prove that no secret reaches `debug.log` or `kodi.log`; keep it that way.
 - Generated binaries (`icon.png`, `fanart.jpg`) are committed because the add-on must run from source;
   change the SVG and run `make assets` rather than editing them by hand.
-- Work on a branch and open a PR; releases are cut by pushing a tag `vX.Y.Z` that matches `addon.xml`.
+- Work on a branch and open a PR. Release: Actions > Release > Run workflow on `main` (cloud agent sessions cannot push
+  tags, see knowledge.md §15) or push a tag `vX.Y.Z` matching `addon.xml`; either way the Kodi repository is rebuilt.
+  Change `repository.kodiprism/` only with a version bump of its addon.xml, then run *Kodi repository* by hand.
 - When you learn or verify something non-obvious, record it in `docs/knowledge.md` and mark it
   `[verified]` only if you ran it yourself.
 
@@ -80,5 +85,6 @@ Live test: `PP_URL=http://host:2342 PP_PASS=... PP_APP=<app password> python3 te
    delay directory display in Kodi, otherwise move it to a service or detach it.
 7. Preview/download tokens appear in image/video URLs, so they can show up in Kodi debug logs. Acceptable for a
    LAN setup; document it for users or mask in logs.
-8. Optional: consider `<reuselanguageinvoker>` (careful: module-level `ADDON`
-   settings would then go stale); consider a Kodi repository add-on so updates install automatically.
+8. Optional: consider `<reuselanguageinvoker>` (careful: module-level `ADDON` settings would then go stale).
+9. Repository: confirm in real Kodi that install and automatic update from `repository.kodiprism` work; consider
+   `<hashes>sha256</hashes>` with `.sha256` files next to the zips (left out until the exact format is verified).

@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Build the installable Kodi zip: dist/<addon-id>-<version>.zip
+"""Build an installable Kodi zip: dist/<addon-id>-<version>.zip
+
+    python3 tools/build_zip.py                         # the add-on (plugin.image.photoprism)
+    python3 tools/build_zip.py repository.kodiprism    # the repository add-on
 
 The zip contains a single top-level folder named after the add-on id (Kodi
 requires this) and only the files Kodi needs: no caches, bytecode or VCS files.
@@ -16,12 +19,14 @@ EXCLUDE_SUFFIX = (".pyc", ".pyo", ".orig", ".rej", ".swp", ".DS_Store")
 FIXED_TIME = (2026, 1, 1, 0, 0, 0)
 
 
-def main():
-    meta = ET.parse(os.path.join(ROOT, "plugin.image.photoprism", "addon.xml")).getroot()
-    addon_id, version = meta.get("id"), meta.get("version")
-    src = os.path.join(ROOT, addon_id)
-    if not os.path.isdir(src):
+def main(folder="plugin.image.photoprism"):
+    src = os.path.join(ROOT, folder)
+    if not os.path.isfile(os.path.join(src, "addon.xml")):
         sys.exit("add-on folder not found: %s" % src)
+    meta = ET.parse(os.path.join(src, "addon.xml")).getroot()
+    addon_id, version = meta.get("id"), meta.get("version")
+    if addon_id != os.path.basename(src):
+        sys.exit("folder %s does not match the add-on id %s" % (folder, addon_id))
     os.makedirs(os.path.join(ROOT, "dist"), exist_ok=True)
     out = os.path.join(ROOT, "dist", "%s-%s.zip" % (addon_id, version))
     files = []
@@ -39,7 +44,8 @@ def main():
             with open(path, "rb") as fh:
                 z.writestr(info, fh.read())
     print("%s  (%d files, %d bytes)" % (os.path.relpath(out, ROOT), len(files), os.path.getsize(out)))
+    return out
 
 
 if __name__ == "__main__":
-    main()
+    main(*sys.argv[1:2])

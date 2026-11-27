@@ -2,6 +2,20 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/). Versions follow `addon.xml`.
 
+## [1.3.0] - 2026-11-27
+### Added
+- **Kodi repository** `repository.kodiprism` (1.0.0): install it once from its zip, then KodiPrism installs and
+  updates from it like any Kodi add-on. It is served from the `repo` branch of this project
+  (`addons.xml` + md5 + zips + artwork) and rebuilt by every release (`.github/workflows/repo.yml`, also runnable
+  by hand). The repository add-on zip is attached to each release. `tools/build_repo.py` builds the content
+  (newest version of each add-on, numeric version order, deterministic); `make repo` builds it locally.
+### Changed
+- Tests moved to **pytest**: 50 independent functional tests in six files (the 158 checks are unchanged), shared
+  fakes in `tests/support.py`, state reset before every test in `tests/conftest.py`, `KODIPRISM_SHUFFLE=<seed>`
+  for a random order. Static checks, Hypothesis properties and the new repository tests are pytest tests too.
+- CI also runs `kodi-addon-checker` on the repository add-on and uploads the repository content as an artifact.
+- No change to what the add-on does in Kodi.
+
 ## [1.2.2] - 2026-11-24
 ### Fixed
 - The root-menu items *Slideshow* and *Clear cache* (and the *> Slideshow* item at the top of photo lists) never
