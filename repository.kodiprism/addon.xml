@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="repository.kodiprism" name="KodiPrism repository" version="1.0.0" provider-name="mspinolo">
+  <extension point="xbmc.addon.repository" name="KodiPrism repository">
+    <dir>
+      <info compressed="false">https://raw.githubusercontent.com/mspinolo/kodiprism/repo/addons.xml</info>
+      <checksum>https://raw.githubusercontent.com/mspinolo/kodiprism/repo/addons.xml.md5</checksum>
+      <datadir zip="true">https://raw.githubusercontent.com/mspinolo/kodiprism/repo/</datadir>
+    </dir>
+  </extension>
+  <extension point="xbmc.addon.metadata">
+    <summary lang="en_GB">Updates for KodiPrism, the Kodi add-on for PhotoPrism</summary>
+    <summary lang="it_IT">Aggiornamenti di KodiPrism, l'add-on Kodi per PhotoPrism</summary>
+    <description lang="en_GB">Install this once: Kodi then installs KodiPrism from here and keeps it up to date automatically. Not affiliated with or endorsed by PhotoPrism.</description>
+    <description lang="it_IT">Da installare una volta sola: poi Kodi installa KodiPrism da qui e lo aggiorna automaticamente. Non affiliato a PhotoPrism né approvato da PhotoPrism.</description>
+    <platform>all</platform>
+    <license>GPL-3.0-only</license>
+    <website>https://github.com/mspinolo/kodiprism</website>
+    <source>https://github.com/mspinolo/kodiprism</source>
+    <assets>
+      <icon>icon.png</icon>
+      <fanart>fanart.jpg</fanart>
+    </assets>
+  </extension>
+</addon>

@@ -39,8 +39,8 @@ def main():
                 with open(os.path.join(base, f), encoding="utf-8") as fh:
                     compile(fh.read(), os.path.join(base, f), "exec")
     env = dict(os.environ, KODIPRISM_ADDON_DIR=unpacked)
-    # every functional test, against the unpacked copy (the static checks read the source tree, so they are skipped)
-    done = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "--ignore", os.path.join(ROOT, "tests", "test_static.py"),
+    # every functional test against the unpacked copy (static and repository checks read the source tree: skipped)
+    done = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "--ignore", os.path.join(ROOT, "tests", "test_static.py"), "--ignore", os.path.join(ROOT, "tests", "test_repo.py"),
                            os.path.join(ROOT, "tests")], env=env, capture_output=True, text=True, cwd=ROOT)
     last = (done.stdout.strip().splitlines() or ["(no output)"])[-1]
     print("tests against the unpacked zip: %s" % last)

@@ -5,7 +5,22 @@ A Kodi add-on for [PhotoPrism](https://www.photoprism.app/) (add-on id `plugin.i
 > **Status:** the owner uses it in a real Kodi against a real PhotoPrism (connection and browsing confirmed with 1.0.2); newer features are tested with mocked Kodi modules and a fake server and still need confirmation in Kodi. See [AGENTS.md](AGENTS.md).
 
 ## Install
-Download `plugin.image.photoprism-<version>.zip` from the [Releases](https://github.com/mspinolo/kodiprism/releases) page (or build it with `make build`; it lands in `dist/`). In Kodi go to Settings > Add-ons > Install from zip file and pick the zip. Kodi installs the `script.module.requests` dependency from the official repo.
+**Recommended: from the KodiPrism repository**, so Kodi installs updates by itself.
+1. Download `repository.kodiprism-<version>.zip` from the latest [release](https://github.com/mspinolo/kodiprism/releases/latest)
+   (or directly: `https://raw.githubusercontent.com/mspinolo/kodiprism/repo/repository.kodiprism/repository.kodiprism-1.0.0.zip`).
+2. In Kodi: *Settings > Add-ons > Install from zip file*, pick that zip. (The first time Kodi asks to allow
+   *Unknown sources* in *Settings > System > Add-ons*.)
+3. *Settings > Add-ons > Install from repository > KodiPrism repository > Picture add-ons > KodiPrism > Install*.
+   Kodi installs the `script.module.requests` dependency from the official repository.
+
+Already installed from a zip? Do steps 1-2, then open KodiPrism in *Install from repository* as in step 3 and
+press *Update* (or *Versions* and pick the newest): from then on updates come from the repository. Your settings stay.
+
+**Alternative: a single zip.** Download `plugin.image.photoprism-<version>.zip` from the [Releases](https://github.com/mspinolo/kodiprism/releases) page (or build it with `make build`; it lands in `dist/`) and use *Install from zip file*. Updates are then manual.
+
+How the repository works: [`repository.kodiprism/addon.xml`](repository.kodiprism/addon.xml) points Kodi at the
+`repo` branch of this project (`addons.xml`, its md5 and the zips, served by raw.githubusercontent.com). Every
+release rebuilds that branch automatically (`.github/workflows/repo.yml`, also runnable by hand).
 
 ## Settings
 - **Server:** URL (default `http://localhost:2342`). Login method is either **username + password** (POST `/api/v1/session`) or an **app password / access token** (Bearer). Nothing secret is stored in the code. The session token is saved to `<profile>/session.json` (mode 0600). A new login happens automatically when the settings change or the token expires.

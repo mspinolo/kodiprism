@@ -1,6 +1,6 @@
 PY ?= python3
 
-.PHONY: test test-zip coverage lint build assets check clean
+.PHONY: test test-zip coverage lint build repo assets check clean
 test:
 	$(PY) -m pytest -q
 
@@ -19,11 +19,15 @@ lint:
 
 build:
 	$(PY) tools/build_zip.py
+	$(PY) tools/build_zip.py repository.kodiprism
+
+repo: build
+	$(PY) tools/build_repo.py dist/repo dist/plugin.image.photoprism-*.zip dist/repository.kodiprism-*.zip
 
 assets:
 	$(PY) tools/render_assets.py
 
-check: test test-zip lint build
+check: test test-zip lint repo
 
 clean:
 	rm -rf dist .mypy_cache .pytest_cache .coverage .coverage.* .hypothesis
