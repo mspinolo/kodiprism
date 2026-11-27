@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install tools
-        run: pip install requests pillow hypothesis
+        run: pip install requests pillow hypothesis pytest
       - name: Tests (source tree)
         run: make test
       - name: Tests (the unpacked release zip)
@@ -34,7 +34,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install tools
-        run: pip install requests pillow hypothesis coverage pyflakes mypy Kodistubs kodi-addon-checker
+        run: pip install requests pillow hypothesis pytest coverage pyflakes mypy Kodistubs kodi-addon-checker
       - name: Coverage (fails below the threshold in the Makefile)
         run: make coverage
       - name: Lint (pyflakes + mypy)

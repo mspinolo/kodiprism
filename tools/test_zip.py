@@ -39,12 +39,13 @@ def main():
                 with open(os.path.join(base, f), encoding="utf-8") as fh:
                     compile(fh.read(), os.path.join(base, f), "exec")
     env = dict(os.environ, KODIPRISM_ADDON_DIR=unpacked)
-    for test in ("test_addon.py", "test_properties.py"):
-        done = subprocess.run([sys.executable, os.path.join(ROOT, "tests", test)], env=env, capture_output=True, text=True)
-        last = (done.stdout.strip().splitlines() or ["(no output)"])[-1]
-        print("%-20s against the unpacked zip: %s" % (test, last))
-        if done.returncode != 0:
-            sys.exit(done.stdout[-2000:] + done.stderr[-2000:])
+    # every functional test, against the unpacked copy (the static checks read the source tree, so they are skipped)
+    done = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "--ignore", os.path.join(ROOT, "tests", "test_static.py"),
+                           os.path.join(ROOT, "tests")], env=env, capture_output=True, text=True, cwd=ROOT)
+    last = (done.stdout.strip().splitlines() or ["(no output)"])[-1]
+    print("tests against the unpacked zip: %s" % last)
+    if done.returncode != 0:
+        sys.exit(done.stdout[-3000:] + done.stderr[-2000:])
     print("ZIP OK: %s (%d files)" % (os.path.relpath(path, ROOT), len(names)))
 
 

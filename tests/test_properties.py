@@ -7,29 +7,22 @@ import json
 import os
 import tempfile
 
-import kodi_mocks  # installs the fake Kodi modules
-from hypothesis import given, settings, strategies as st
+import pytest
 
-from resources.lib import api as api_mod, catalog, slideshow_fx as fx
-from resources.lib.logger import AddonLog
+hypothesis = pytest.importorskip("hypothesis")
+from hypothesis import given, settings, strategies as st  # noqa: E402
 
-assert kodi_mocks.ADDON_DIR
+from resources.lib import api as api_mod, catalog, slideshow_fx as fx  # noqa: E402  (conftest installed the fake Kodi modules)
+from resources.lib.logger import AddonLog  # noqa: E402
+
 EXPLORE = bool(os.environ.get("KODIPRISM_EXPLORE"))
 CFG = settings(max_examples=3000 if EXPLORE else 300, derandomize=not EXPLORE, deadline=None, database=None)
-ok = 0
-
-
-def prop(fn):
-    """Run a @given-decorated property once under the shared settings and count it."""
-    global ok
-    CFG(fn)()
-    ok += 1
-    print("PASS", fn.__name__)
 
 
 # ---- the server address is either rejected with ApiError or turned into a stable, usable base URL
+@CFG
 @given(st.text(max_size=60))
-def addresses_are_rejected_or_stable(raw):
+def test_addresses_are_rejected_or_stable(raw):
     try:
         out = api_mod.normalize_base_url(raw)
     except api_mod.ApiError:
@@ -40,13 +33,15 @@ def addresses_are_rejected_or_stable(raw):
 
 
 # ---- search: folding is stable and any piece of a title finds that title
+@CFG
 @given(st.text(max_size=40))
-def fold_is_idempotent(t):
+def test_fold_is_idempotent(t):
     assert catalog.fold(catalog.fold(t)) == catalog.fold(t)
 
 
+@CFG
 @given(st.text(min_size=1, max_size=30), st.data())
-def a_piece_of_a_title_matches_it(title, data):
+def test_a_piece_of_a_title_matches_it(title, data):
     i = data.draw(st.integers(0, len(title) - 1)); j = data.draw(st.integers(i + 1, len(title)))
     piece = title[i:j]
     if not catalog.fold(piece).strip():
@@ -59,9 +54,10 @@ UIDS = st.text(alphabet="abcdef", min_size=1, max_size=3)
 DATES = st.sampled_from(["", "2008-08-02T10:00:00Z", "2020-01-01T00:00:00Z", "2020-01-01T00:00:01Z", "2021-06-01T10:00:00.123Z"])
 
 
+@CFG
 @given(st.lists(st.fixed_dictionaries({"UID": UIDS, "Title": st.text(max_size=10)}), unique_by=lambda a: a["UID"], max_size=12),
        st.dictionaries(UIDS, DATES, max_size=12), st.sampled_from(["newest", "oldest", "name"]))
-def sorting_keeps_every_album_in_a_sensible_order(albums, dates, mode):
+def test_sorting_keeps_every_album_in_a_sensible_order(albums, dates, mode):
     out = catalog.sort_albums(albums, dates, mode)
     assert sorted(a["UID"] for a in out) == sorted(a["UID"] for a in albums)             # nothing lost or duplicated
     assert catalog.sort_albums(out, dates, mode) == out                                   # stable / idempotent
@@ -80,8 +76,9 @@ def sorting_keeps_every_album_in_a_sensible_order(albums, dates, mode):
 TOKENS = st.text(alphabet=st.characters(whitelist_categories=("Ll", "Lu", "Nd")), min_size=4, max_size=16)
 
 
+@CFG
 @given(TOKENS, st.text(max_size=40))
-def secrets_never_survive_redaction(secret, noise):
+def test_secrets_never_survive_redaction(secret, noise):
     log = AddonLog("x", tempfile.mkdtemp(), debug=True); log.add_secret(secret)
     out = log.redact("%s %s /api/v1/t/h1/%s/tile_500 /dl/h1?t=%s %s" % (noise, secret, secret, secret, noise))
     assert secret not in out
@@ -92,8 +89,9 @@ def secrets_never_survive_redaction(secret, noise):
 OPS = st.lists(st.sampled_from(["prepare", "tick_on", "tick_off", "restore", "wait", "fail_set", "ok_set", "fail_get", "ok_get"]), max_size=40)
 
 
+@CFG
 @given(st.booleans(), OPS)
-def pan_zoom_setting_always_returns_to_its_original_value(initial, ops):
+def test_pan_zoom_setting_always_returns_to_its_original_value(initial, ops):
     kodi, flags, now = {"v": initial}, {"fail_set": False, "fail_get": False}, [1000.0]
 
     def rpc(raw):
@@ -120,10 +118,3 @@ def pan_zoom_setting_always_returns_to_its_original_value(initial, ops):
     flags["fail_set"] = flags["fail_get"] = False
     guard.restore()                                            # what the service does on exit
     assert kodi["v"] == initial and not guard.pending(), (initial, ops)
-
-
-for fn in (addresses_are_rejected_or_stable, fold_is_idempotent, a_piece_of_a_title_matches_it,
-           sorting_keeps_every_album_in_a_sensible_order, secrets_never_survive_redaction,
-           pan_zoom_setting_always_returns_to_its_original_value):
-    prop(fn)
-print("ALL %d PROPERTIES HELD" % ok)

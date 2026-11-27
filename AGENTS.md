@@ -13,7 +13,8 @@ The first version was generated entirely by Claude Opus; the owner made the firs
 ## Current status (keep this section honest and up to date)
 - Version **1.2.2** (see `CHANGELOG.md`). License **GPL-3.0** (`LICENSE`, mirrored in `addon.xml`).
 - Verified in automation: unit/integration tests with mocked `xbmc*` modules against a fake PhotoPrism
-  server (`tests/test_addon.py`), offline static checks (`tests/test_static.py`), pyflakes, mypy+Kodistubs.
+  server (pytest: `tests/test_*.py`, shared code in `tests/support.py`, state reset in `tests/conftest.py`), offline static
+  checks (`tests/test_static.py`), Hypothesis properties, pyflakes, mypy+Kodistubs.
 - Reported by the previous agent but **not re-verified** by later sessions: `tests/test_live.py` against a real
   PhotoPrism Docker container (needs `PP_PASS`, `PP_APP`, `PP_URL`).
 - **Real Kodi:** the owner confirmed (1.0.2, LibreELEC/Kodi 21) that connection and browsing work and photos
@@ -26,7 +27,8 @@ The first version was generated entirely by Claude Opus; the owner made the firs
 ```
 plugin.image.photoprism/   the add-on exactly as Kodi sees it (this folder is what gets zipped)
   addon.xml  default.py  resources/{settings.xml,icon.png,fanart.jpg,language/,lib/{api,cache,plugin}.py}
-tests/                     kodi_mocks.py (fake xbmc modules) · test_addon.py · test_live.py · test_static.py
+tests/                     kodi_mocks.py (fake xbmc) · support.py (fake PhotoPrism, helpers) · conftest.py · test_*.py
+                           (pytest) · test_live.py / live_probe.py / live_scale.py (real server only, not collected)
 tools/                     build_zip.py (-> dist/, gitignored) · render_assets.py (assets/*.svg -> icon/fanart)
 assets/                    icon.svg, fanart.svg — sources of the generated artwork
 docs/knowledge.md          API facts, Kodi patterns, design decisions, testing recipes, known bugs
@@ -37,7 +39,7 @@ Code is small: `api.py` REST client (URL normalisation, error messages), `catalo
 
 ## Commands
 ```
-make test        # tests/test_addon.py + tests/test_properties.py (Hypothesis) + tests/test_static.py
+make test        # pytest: functional tests + Hypothesis properties + static checks (KODIPRISM_SHUFFLE=<seed> for random order)
 make test-zip    # builds the zip, unpacks it elsewhere and runs the functional tests against that copy
 make coverage    # same tests under coverage.py, fails below the threshold in the Makefile (needs: pip install coverage hypothesis)
 make lint        # pyflakes + mypy (needs: pip install pyflakes mypy Kodistubs)
@@ -55,6 +57,8 @@ Live test: `PP_URL=http://host:2342 PP_PASS=... PP_APP=<app password> python3 te
 - Bump `version` in `addon.xml` **and** add a `## [x.y.z]` entry to `CHANGELOG.md` together (also enforced).
 - Never commit secrets (passwords, app passwords, tokens). Secrets live only in Kodi settings.
 - UI text: never hard-code English in `plugin.py`; add a key to `STR`, the id to **both** `en_gb` and `it_it` `strings.po` (`tests/test_static.py` enforces parity).
+- Tests: pytest functions that start from the clean state of `tests/conftest.py`; put shared fakes/helpers in
+  `tests/support.py`. A new test must pass alone (`pytest tests/x.py::test_y`) and in a shuffled run.
 - Log only through `self.log` (`AddonLog`), never `xbmc.log` directly; register any new secret with `add_secret()`. Tests prove that no secret reaches `debug.log` or `kodi.log`; keep it that way.
 - Generated binaries (`icon.png`, `fanart.jpg`) are committed because the add-on must run from source;
   change the SVG and run `make assets` rather than editing them by hand.
@@ -76,5 +80,5 @@ Live test: `PP_URL=http://host:2342 PP_PASS=... PP_APP=<app password> python3 te
    delay directory display in Kodi, otherwise move it to a service or detach it.
 7. Preview/download tokens appear in image/video URLs, so they can show up in Kodi debug logs. Acceptable for a
    LAN setup; document it for users or mask in logs.
-8. Optional: migrate `tests/` to pytest; consider `<reuselanguageinvoker>` (careful: module-level `ADDON`
+8. Optional: consider `<reuselanguageinvoker>` (careful: module-level `ADDON`
    settings would then go stale); consider a Kodi repository add-on so updates install automatically.

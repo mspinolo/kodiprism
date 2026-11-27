@@ -14,7 +14,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - run: pip install requests pillow hypothesis
+      - run: pip install requests pillow hypothesis pytest
       - name: Work out the tag and check it against addon.xml
         id: tag
         run: |
