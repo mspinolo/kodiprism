@@ -98,10 +98,12 @@ listing = cli("auth", "ls")
 ids = []
 for line in listing.splitlines():
     if "kodi-full" in line:
-        ids += [w for w in re.findall(r"\b[a-z0-9]{14,}\b", line) if not TOKEN_RE.search(w)]
+        ids += re.findall(r"\bsess[a-z0-9]{8}\b", line)   # e.g. sess7wcu1luo (auth ls, PhotoPrism 2026)
 R["revoke_candidate_ids"] = ids
 if full and ids:
-    cli("auth", "rm", ids[0])
+    cli("auth", "rm", "-y", ids[0])
+    after = cli("auth", "ls")
+    R["listed_after_revoke"] = {"kodi-full": "kodi-full" in after, "kodi-webdav": "kodi-webdav" in after}
     use(full, "full_after_revoke")
     if webdav:
         use(webdav, "webdav_after_revoking_the_other")
