@@ -2,7 +2,7 @@
 
 A Kodi add-on for [PhotoPrism](https://www.photoprism.app/) (add-on id `plugin.image.photoprism`). Browse albums, folders, moments, the calendar, all photos, videos and favorites of your own PhotoPrism server (/api/v1), search albums, and run slideshows. Targets Kodi 21 "Omega", Python 3. Licensed under GPL-3.0. Not affiliated with or endorsed by PhotoPrism; the PhotoPrism name and logo are their trademarks and the logo is not used here.
 
-> **Status:** the owner uses it in a real Kodi against a real PhotoPrism (connection and browsing confirmed with 1.0.2); newer features are tested with mocked Kodi modules and a fake server and still need confirmation in Kodi. See [AGENTS.md](AGENTS.md).
+> **Status:** the owner uses it every day in a real Kodi (LibreELEC, Kodi 21) against a real PhotoPrism; 1.2.2 was confirmed working there. Every change is also tested with mocked Kodi modules, a fake server and, in CI, a real PhotoPrism. See [AGENTS.md](AGENTS.md).
 
 ## Install
 **Recommended: from the KodiPrism repository**, so Kodi installs updates by itself.
@@ -22,14 +22,48 @@ How the repository works: [`repository.kodiprism/addon.xml`](repository.kodipris
 `repo` branch of this project (`addons.xml`, its md5 and the zips, served by raw.githubusercontent.com). Every
 release rebuilds that branch automatically (`.github/workflows/repo.yml`, also runnable by hand).
 
+## Connect to PhotoPrism: use an app password (recommended)
+KodiPrism can log in with your PhotoPrism username and password, but an **app password** made just for Kodi is
+the better choice: you can withdraw Kodi's access at any time without touching anything else.
+
+**Create one** (PhotoPrism web interface, as the user whose photos Kodi should show):
+1. *Settings > Account > Apps and Devices*, then add an app password, e.g. named `Kodi living room`.
+2. **Scope: Full access.** KodiPrism reads albums and photos through the PhotoPrism API; a *WebDAV*-only app
+   password logs in but every list is refused (HTTP 403, *Access denied*).
+3. Optionally set an expiry date. Copy the password: PhotoPrism shows it only once.
+4. In Kodi: KodiPrism settings > *Server* > *Login method: App password / access token*, paste it, then
+   *Test connection*.
+
+Administrators can do the same in a terminal: `photoprism auth add -n "Kodi living room" -s "*" -e -1 <username>`
+(`-e` is the lifetime in seconds, `-1` = no expiry).
+
+**Why it is better than your account password**
+| | Account password | App password |
+|---|---|---|
+| Stop Kodi's access | change your password, then re-enter it everywhere else | revoke this one app password; other apps, devices and your own login keep working |
+| Stored on the Kodi device | your real account password, in Kodi's settings file (`userdata/addon_data/plugin.image.photoprism/settings.xml`, plain text: Kodi only hides it on screen) | a random password that is useful only for this access and can be revoked |
+| What it can do if it leaks | everything you can do, including changing your password and settings | cannot change the account password or manage users |
+| You change your account password | Kodi stops working until you type the new one | nothing to do in Kodi: the app password keeps working |
+| Two-factor authentication (2FA) | apps can no longer log in with the password once 2FA is on | works with 2FA enabled (this is what app passwords are for) |
+| Expiry | none | optional; when it expires Kodi shows *Authentication failed (401)* |
+| Visibility | none | `photoprism auth ls` lists each app password with its name, scope and *Last Active* time |
+
+**Revoke it** when you replace or give away the Kodi device: in *Settings > Account > Apps and Devices*, or as an
+administrator with `photoprism auth ls` (note the *Session ID* of the app password) and
+`photoprism auth rm -y <session id>`. The revocation is immediate: Kodi then shows *Authentication failed (401)*.
+
+What KodiPrism shows in each case (checked against a real PhotoPrism):
+- revoked or expired app password: *Authentication failed (401) - check username/password or app password*
+- app password with the WebDAV scope only: *Access denied (403) - check the account permissions / app password scope*
+
 ## Settings
-- **Server:** URL (default `http://localhost:2342`). Login method is either **username + password** (POST `/api/v1/session`) or an **app password / access token** (Bearer). Nothing secret is stored in the code. The session token is saved to `<profile>/session.json` (mode 0600). A new login happens automatically when the settings change or the token expires.
+- **Server:** URL (default `http://localhost:2342`). Login method is either an **app password / access token** (Bearer, recommended, see above) or **username + password** (POST `/api/v1/session`). Nothing secret is stored in the code. The session token is saved to `<profile>/session.json` (mode 0600). A new login happens automatically when the settings change or the token expires.
 - **Browsing:** items per page, **hide empty albums**, **disable pan and zoom during slideshows**, **sort order** (newest first, oldest first, name), **maximum images per slideshow** (default 2000), thumbnail size (`tile_224` to `fit_1280`), slideshow image size (up to `original` via `/api/v1/dl`), thumbnail prefetching (number of threads) and video format (`avc`, `hevc`, `vp9`, `av01`).
 - **Cache:** an on/off switch and a folder browser for any folder or disk. A `photoprism_cache/` folder is created there. If the folder doesn't exist or can't be written to, the add-on uses the add-on profile folder instead and shows a notification. You can also set the max size in MB (default 500), the lifetime in hours (default 24) and use a **Clear cache** button. Metadata (JSON) and thumbnails are stored on disk. Old entries are removed by TTL, then least-recently-used entries are removed until the cache is under the size limit.
 
 ## Usage
 - **Search...** takes PhotoPrism query syntax, e.g. `label:cat year:2023`, `country:de favorite:true`.
-- **Slideshow:** use the entry at the top of any photo list, the album context menu, or the root menu. It starts Kodi's slideshow with up to 1000 images.
+- **Slideshow:** use the entry at the top of any photo list, the album context menu, or the root menu. It asks for the order (newest, oldest or random first) and starts Kodi's slideshow with up to the configured maximum (2000 images by default).
 - **Videos** play through `/api/v1/videos/{hash}/{previewToken}/{format}`.
 - Errors such as timeouts, bad logins, an unreachable server or HTTP errors are shown as Kodi notifications.
 
