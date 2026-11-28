@@ -214,3 +214,16 @@ Cloud agent sessions can push branches and open/merge PRs, but `git push origin 
 - **Not yet verified in real Kodi:** first install from the repository, update detection, and whether an add-on first installed from a zip switches to the repository after *Update* from *Install from repository* (Kodi 19+ records an add-on's origin).
 - **Pitfall [verified, 2026-11-27]:** the first publication failed with `cannot lock ref 'refs/heads/repo': 'refs/heads/repo/kodi-repository' exists`. Git cannot hold a branch `repo` and a branch `repo/<anything>` at the same time. Never name a work branch `repo/...`; `repo.yml` now checks this first and names the branches to delete. Cloud sessions cannot delete branches (git push --delete and the API are refused by the proxy), so the owner deletes them on GitHub.
 - **CI flake [verified, 2026-11-27]:** `kodi-addon-checker` downloads the official repository lists from github.com; on a read timeout it crashes with `AttributeError: 'Repository' object has no attribute 'addons'` (main run 46047701886, same commit that passed minutes earlier). `ci.yml` now gives each check up to three attempts; a real finding still fails all three.
+
+## 18. App passwords, checked against a real PhotoPrism [verified, 2026-11-28]
+Probe: `tests/live_auth.py`, step of `live.yml` (runs 46151641586 and 46152140129, official Docker image), using the add-on's own API client.
+- Created with `photoprism auth add -n <name> -s <scope> -e <seconds|-1> <user>`; the output shows the app password once (`xxxxxx-xxxxxx-xxxxxx-xxxxxx`).
+- **Scope `*`** (full access): KodiPrism lists albums and photos. **Scope `webdav`**: `GET /config` still works, every list returns **403** `Permission denied`; the add-on shows *Access denied (403) - check the account permissions / app password scope*. So the README asks for full access.
+- An app password with scope `*` **cannot change the account password** (`PUT /api/v1/users/<uid>/password` -> 403).
+- **Changing the account password** (with a normal session) leaves the app password working.
+- **Expiry** (`-e 20`): works before, **401** after; the add-on shows *Authentication failed (401) ...*.
+- **Revocation:** `photoprism auth ls` lists app passwords as sessions (`Session ID` like `sess7wcu1luo`, method `Application`, client name, scope, *Last Active*, *Expires At*); `photoprism auth rm -y <session id>` revokes it **immediately** (next request 401) and leaves other app passwords of the same user valid. `auth rm` without `-y` asks for confirmation.
+- Note: after revocation or expiry `login_token()` still succeeds, because `GET /api/v1/config` answers without a valid token; the failure shows up at the first list request. Harmless (the user gets the 401 message), but *Test connection* reports the login step as passed before the list step fails.
+- Not verified here (web UI): the revoke button in *Settings > Account > Apps and Devices* (documented flow for creating app passwords; the owner reports revoking works there).
+- PhotoPrism docs used: User Guide > Users > Client credentials / app passwords, Settings > Account, Two-factor authentication (with 2FA on, apps can no longer use the account password).
+
