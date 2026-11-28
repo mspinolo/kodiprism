@@ -13,7 +13,7 @@ import kodi_mocks  # noqa: E402  -- installs the fake xbmc* modules before the a
 assert kodi_mocks.ADDON_DIR
 
 # need a real PhotoPrism (see AGENTS.md / .github/workflows/live.yml); never collected by `pytest`
-collect_ignore = ["test_live.py", "live_probe.py", "live_scale.py"]
+collect_ignore = ["test_live.py", "live_probe.py", "live_scale.py", "live_auth.py"]
 
 
 @pytest.fixture(autouse=True)

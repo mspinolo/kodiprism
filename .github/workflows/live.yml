@@ -38,6 +38,9 @@ jobs:
         run: docker exec pp photoprism index
       - name: Probe the server
         run: PP_URL=http://127.0.0.1:2342 PP_PASS=ci-test-password-1 python3 tests/live_probe.py /tmp/report.json
+      - name: App passwords (scope, expiry, revocation, account password change)
+        continue-on-error: true
+        run: PP_URL=http://127.0.0.1:2342 PP_PASS=ci-test-password-1 python3 tests/live_auth.py /tmp/auth.json
       - name: Scale test (2100 photos, 100 albums)
         continue-on-error: true
         run: |
@@ -47,12 +50,12 @@ jobs:
       - name: Publish report as annotations
         if: always()
         run: |
-          { echo "== probe report"; cat /tmp/report.json 2>/dev/null || echo "(no report)"; echo; echo "== scale report"; cat /tmp/scale.json 2>/dev/null || echo "(no scale report)"; echo; echo "== docker ps"; docker ps -a --format '{{.Names}} {{.Status}}'; echo "== PhotoPrism log (tail)"; docker logs pp 2>&1 | tail -30; } > /tmp/annot.txt
+          { echo "== probe report"; cat /tmp/report.json 2>/dev/null || echo "(no report)"; echo; echo "== scale report"; cat /tmp/scale.json 2>/dev/null || echo "(no scale report)"; echo; echo "== auth report"; cat /tmp/auth.json 2>/dev/null || echo "(no auth report)"; echo; echo "== docker ps"; docker ps -a --format '{{.Names}} {{.Status}}'; echo "== PhotoPrism log (tail)"; docker logs pp 2>&1 | tail -30; } > /tmp/annot.txt
           python3 - <<'PY'
           import base64, gzip
           raw = open('/tmp/annot.txt', 'rb').read()
           b = base64.b64encode(gzip.compress(raw, 9)).decode()
           chunks = [b[i:i + 3500] for i in range(0, len(b), 3500)]
-          for n, c in enumerate(chunks[:14]):
+          for n, c in enumerate(chunks[:30]):
               print('::notice title=live-report-%02d::%s' % (n, c))
           PY
